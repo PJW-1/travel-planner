@@ -1,0 +1,314 @@
+<svg width="1740" height="1470" viewBox="0 0 1740 1470" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <style>
+    .bg { fill: #fbfbfc; }
+    .table { fill: #ffffff; stroke: #d9dde3; stroke-width: 1.5; rx: 8; }
+    .grid { stroke: #e6e9ee; stroke-width: 1; }
+    .head { fill: #ffffff; }
+    .name { fill: #475569; font: 700 15px 'Pretendard Variable', 'Noto Sans KR', sans-serif; }
+    .cell { fill: #334155; font: 600 12px 'Pretendard Variable', 'Noto Sans KR', sans-serif; }
+    .muted { fill: #64748b; font: 500 12px 'Pretendard Variable', 'Noto Sans KR', sans-serif; }
+    .key { fill: #0f172a; font: 700 12px 'Pretendard Variable', 'Noto Sans KR', sans-serif; }
+    .line { stroke: #b8c0cb; stroke-width: 2.3; fill: none; }
+    .dot { fill: #ffffff; stroke: #b8c0cb; stroke-width: 2; }
+  </style>
+
+  <rect class="bg" width="1740" height="1470"/>
+
+  <!-- USERS -->
+  <g transform="translate(900 25)">
+    <rect class="table" width="170" height="220"/>
+    <line class="grid" x1="0" y1="34" x2="170" y2="34"/>
+    <line class="grid" x1="110" y1="0" x2="110" y2="220"/>
+    <text x="85" y="22" text-anchor="middle" class="name">USERS</text>
+    <text x="10" y="54" class="key">bigint</text><text x="58" y="54" class="cell">id</text><text x="148" y="54" class="key">PK</text>
+    <line class="grid" x1="0" y1="64" x2="170" y2="64"/>
+    <text x="10" y="84" class="key">varchar</text><text x="58" y="84" class="cell">email</text>
+    <line class="grid" x1="0" y1="94" x2="170" y2="94"/>
+    <text x="10" y="114" class="key">varchar</text><text x="58" y="114" class="cell">password_hash</text>
+    <line class="grid" x1="0" y1="124" x2="170" y2="124"/>
+    <text x="10" y="144" class="key">varchar</text><text x="58" y="144" class="cell">nickname</text>
+    <line class="grid" x1="0" y1="154" x2="170" y2="154"/>
+    <text x="10" y="174" class="key">varchar</text><text x="58" y="174" class="cell">provider</text>
+    <line class="grid" x1="0" y1="184" x2="170" y2="184"/>
+    <text x="10" y="204" class="key">varchar</text><text x="58" y="204" class="cell">status</text>
+  </g>
+
+  <!-- TREND SNAPSHOTS -->
+  <g transform="translate(1172 70)">
+    <rect class="table" width="165" height="165"/>
+    <line class="grid" x1="0" y1="34" x2="165" y2="34"/>
+    <line class="grid" x1="110" y1="0" x2="110" y2="165"/>
+    <text x="82.5" y="22" text-anchor="middle" class="name">TREND_SNAPSHOTS</text>
+    <text x="10" y="54" class="key">bigint</text><text x="58" y="54" class="cell">id</text><text x="143" y="54" class="key">PK</text>
+    <line class="grid" x1="0" y1="64" x2="165" y2="64"/>
+    <text x="10" y="84" class="key">varchar</text><text x="58" y="84" class="cell">title</text>
+    <line class="grid" x1="0" y1="94" x2="165" y2="94"/>
+    <text x="10" y="114" class="key">int</text><text x="58" y="114" class="cell">rank_no</text>
+    <line class="grid" x1="0" y1="124" x2="165" y2="124"/>
+    <text x="10" y="144" class="key">varchar</text><text x="58" y="144" class="cell">tag_name</text>
+    <line class="grid" x1="0" y1="154" x2="165" y2="154"/>
+    <text x="10" y="174" class="key">date</text><text x="58" y="174" class="cell">snapshot_date</text>
+  </g>
+
+  <!-- PLACES -->
+  <g transform="translate(120 315)">
+    <rect class="table" width="175" height="305"/>
+    <line class="grid" x1="0" y1="34" x2="175" y2="34"/>
+    <line class="grid" x1="108" y1="0" x2="108" y2="305"/>
+    <text x="87.5" y="22" text-anchor="middle" class="name">PLACES</text>
+    <text x="10" y="54" class="key">bigint</text><text x="58" y="54" class="cell">id</text><text x="150" y="54" class="key">PK</text>
+    <line class="grid" x1="0" y1="64" x2="175" y2="64"/>
+    <text x="10" y="84" class="key">varchar</text><text x="58" y="84" class="cell">name</text>
+    <line class="grid" x1="0" y1="94" x2="175" y2="94"/>
+    <text x="10" y="114" class="key">varchar</text><text x="58" y="114" class="cell">category</text>
+    <line class="grid" x1="0" y1="124" x2="175" y2="124"/>
+    <text x="10" y="144" class="key">varchar</text><text x="58" y="144" class="cell">address</text>
+    <line class="grid" x1="0" y1="154" x2="175" y2="154"/>
+    <text x="10" y="174" class="key">decimal</text><text x="58" y="174" class="cell">lat</text>
+    <line class="grid" x1="0" y1="184" x2="175" y2="184"/>
+    <text x="10" y="204" class="key">decimal</text><text x="58" y="204" class="cell">lng</text>
+    <line class="grid" x1="0" y1="214" x2="175" y2="214"/>
+    <text x="10" y="234" class="key">varchar</text><text x="58" y="234" class="cell">region</text>
+    <line class="grid" x1="0" y1="244" x2="175" y2="244"/>
+    <text x="10" y="264" class="key">varchar</text><text x="58" y="264" class="cell">source_type</text>
+    <line class="grid" x1="0" y1="274" x2="175" y2="274"/>
+    <text x="10" y="294" class="key">varchar</text><text x="58" y="294" class="cell">thumbnail_url</text>
+  </g>
+
+  <!-- VIDEO EXTRACTIONS -->
+  <g transform="translate(430 360)">
+    <rect class="table" width="175" height="205"/>
+    <line class="grid" x1="0" y1="34" x2="175" y2="34"/>
+    <line class="grid" x1="108" y1="0" x2="108" y2="205"/>
+    <text x="87.5" y="22" text-anchor="middle" class="name">VIDEO_EXTRACTIONS</text>
+    <text x="10" y="54" class="key">bigint</text><text x="58" y="54" class="cell">id</text><text x="150" y="54" class="key">PK</text>
+    <line class="grid" x1="0" y1="64" x2="175" y2="64"/>
+    <text x="10" y="84" class="key">bigint</text><text x="58" y="84" class="cell">user_id</text><text x="150" y="84" class="key">FK</text>
+    <line class="grid" x1="0" y1="94" x2="175" y2="94"/>
+    <text x="10" y="114" class="key">varchar</text><text x="58" y="114" class="cell">youtube_url</text>
+    <line class="grid" x1="0" y1="124" x2="175" y2="124"/>
+    <text x="10" y="144" class="key">varchar</text><text x="58" y="144" class="cell">status</text>
+    <line class="grid" x1="0" y1="154" x2="175" y2="154"/>
+    <text x="10" y="174" class="key">varchar</text><text x="58" y="174" class="cell">video_title</text>
+    <line class="grid" x1="0" y1="184" x2="175" y2="184"/>
+    <text x="10" y="204" class="key">datetime</text><text x="58" y="204" class="cell">requested_at</text>
+  </g>
+
+  <!-- TRIPS -->
+  <g transform="translate(850 295)">
+    <rect class="table" width="180" height="290"/>
+    <line class="grid" x1="0" y1="34" x2="180" y2="34"/>
+    <line class="grid" x1="112" y1="0" x2="112" y2="290"/>
+    <text x="90" y="22" text-anchor="middle" class="name">TRIPS</text>
+    <text x="10" y="54" class="key">bigint</text><text x="60" y="54" class="cell">id</text><text x="158" y="54" class="key">PK</text>
+    <line class="grid" x1="0" y1="64" x2="180" y2="64"/>
+    <text x="10" y="84" class="key">bigint</text><text x="60" y="84" class="cell">user_id</text><text x="158" y="84" class="key">FK</text>
+    <line class="grid" x1="0" y1="94" x2="180" y2="94"/>
+    <text x="10" y="114" class="key">varchar</text><text x="60" y="114" class="cell">title</text>
+    <line class="grid" x1="0" y1="124" x2="180" y2="124"/>
+    <text x="10" y="144" class="key">varchar</text><text x="60" y="144" class="cell">destination</text>
+    <line class="grid" x1="0" y1="154" x2="180" y2="154"/>
+    <text x="10" y="174" class="key">date</text><text x="60" y="174" class="cell">start_date</text>
+    <line class="grid" x1="0" y1="184" x2="180" y2="184"/>
+    <text x="10" y="204" class="key">date</text><text x="60" y="204" class="cell">end_date</text>
+    <line class="grid" x1="0" y1="214" x2="180" y2="214"/>
+    <text x="10" y="234" class="key">int</text><text x="60" y="234" class="cell">days</text>
+    <line class="grid" x1="0" y1="244" x2="180" y2="244"/>
+    <text x="10" y="264" class="key">json</text><text x="60" y="264" class="cell">theme_json</text>
+    <line class="grid" x1="0" y1="274" x2="180" y2="274"/>
+    <text x="10" y="294" class="key">varchar</text><text x="60" y="294" class="cell">status</text>
+  </g>
+
+  <!-- VIDEO EXTRACTED PLACES -->
+  <g transform="translate(360 735)">
+    <rect class="table" width="190" height="200"/>
+    <line class="grid" x1="0" y1="34" x2="190" y2="34"/>
+    <line class="grid" x1="120" y1="0" x2="120" y2="200"/>
+    <text x="95" y="22" text-anchor="middle" class="name">VIDEO_EXTRACTED_PLACES</text>
+    <text x="10" y="54" class="key">bigint</text><text x="62" y="54" class="cell">id</text><text x="165" y="54" class="key">PK</text>
+    <line class="grid" x1="0" y1="64" x2="190" y2="64"/>
+    <text x="10" y="84" class="key">bigint</text><text x="62" y="84" class="cell">video_extraction_id</text><text x="165" y="84" class="key">FK</text>
+    <line class="grid" x1="0" y1="94" x2="190" y2="94"/>
+    <text x="10" y="114" class="key">bigint</text><text x="62" y="114" class="cell">place_id</text><text x="165" y="114" class="key">FK</text>
+    <line class="grid" x1="0" y1="124" x2="190" y2="124"/>
+    <text x="10" y="144" class="key">varchar</text><text x="62" y="144" class="cell">raw_place_name</text>
+    <line class="grid" x1="0" y1="154" x2="190" y2="154"/>
+    <text x="10" y="174" class="key">decimal</text><text x="62" y="174" class="cell">confidence_score</text>
+    <line class="grid" x1="0" y1="184" x2="190" y2="184"/>
+    <text x="10" y="204" class="key">decimal</text><text x="62" y="204" class="cell">matched_lat, matched_lng</text>
+  </g>
+
+  <!-- TRIP DAYS -->
+  <g transform="translate(650 760)">
+    <rect class="table" width="170" height="180"/>
+    <line class="grid" x1="0" y1="34" x2="170" y2="34"/>
+    <line class="grid" x1="108" y1="0" x2="108" y2="180"/>
+    <text x="85" y="22" text-anchor="middle" class="name">TRIP_DAYS</text>
+    <text x="10" y="54" class="key">bigint</text><text x="58" y="54" class="cell">id</text><text x="148" y="54" class="key">PK</text>
+    <line class="grid" x1="0" y1="64" x2="170" y2="64"/>
+    <text x="10" y="84" class="key">bigint</text><text x="58" y="84" class="cell">trip_id</text><text x="148" y="84" class="key">FK</text>
+    <line class="grid" x1="0" y1="94" x2="170" y2="94"/>
+    <text x="10" y="114" class="key">int</text><text x="58" y="114" class="cell">day_number</text>
+    <line class="grid" x1="0" y1="124" x2="170" y2="124"/>
+    <text x="10" y="144" class="key">date</text><text x="58" y="144" class="cell">date</text>
+    <line class="grid" x1="0" y1="154" x2="170" y2="154"/>
+    <text x="10" y="174" class="key">text</text><text x="58" y="174" class="cell">notes</text>
+  </g>
+
+  <!-- TRIP ANALYSES -->
+  <g transform="translate(900 760)">
+    <rect class="table" width="180" height="190"/>
+    <line class="grid" x1="0" y1="34" x2="180" y2="34"/>
+    <line class="grid" x1="112" y1="0" x2="112" y2="190"/>
+    <text x="90" y="22" text-anchor="middle" class="name">TRIP_ANALYSES</text>
+    <text x="10" y="54" class="key">bigint</text><text x="60" y="54" class="cell">id</text><text x="158" y="54" class="key">PK</text>
+    <line class="grid" x1="0" y1="64" x2="180" y2="64"/>
+    <text x="10" y="84" class="key">bigint</text><text x="60" y="84" class="cell">trip_id</text><text x="158" y="84" class="key">FK</text>
+    <line class="grid" x1="0" y1="94" x2="180" y2="94"/>
+    <text x="10" y="114" class="key">decimal</text><text x="60" y="114" class="cell">total_distance_km</text>
+    <line class="grid" x1="0" y1="124" x2="180" y2="124"/>
+    <text x="10" y="144" class="key">int</text><text x="60" y="144" class="cell">total_travel_minutes</text>
+    <line class="grid" x1="0" y1="154" x2="180" y2="154"/>
+    <text x="10" y="174" class="key">int</text><text x="60" y="174" class="cell">optimization_score</text>
+    <line class="grid" x1="0" y1="184" x2="180" y2="184"/>
+    <text x="10" y="204" class="key">json</text><text x="60" y="204" class="cell">warning_json</text>
+  </g>
+
+  <!-- FAVORITES -->
+  <g transform="translate(20 780)">
+    <rect class="table" width="165" height="125"/>
+    <line class="grid" x1="0" y1="34" x2="165" y2="34"/>
+    <line class="grid" x1="108" y1="0" x2="108" y2="125"/>
+    <text x="82.5" y="22" text-anchor="middle" class="name">FAVORITES</text>
+    <text x="10" y="54" class="key">bigint</text><text x="58" y="54" class="cell">id</text><text x="143" y="54" class="key">PK</text>
+    <line class="grid" x1="0" y1="64" x2="165" y2="64"/>
+    <text x="10" y="84" class="key">bigint</text><text x="58" y="84" class="cell">user_id</text><text x="143" y="84" class="key">FK</text>
+    <line class="grid" x1="0" y1="94" x2="165" y2="94"/>
+    <text x="10" y="114" class="key">bigint</text><text x="58" y="114" class="cell">place_id</text><text x="143" y="114" class="key">FK</text>
+  </g>
+
+  <!-- COMMUNITY ROUTES -->
+  <g transform="translate(1180 680)">
+    <rect class="table" width="185" height="275"/>
+    <line class="grid" x1="0" y1="34" x2="185" y2="34"/>
+    <line class="grid" x1="114" y1="0" x2="114" y2="275"/>
+    <text x="92.5" y="22" text-anchor="middle" class="name">COMMUNITY_ROUTES</text>
+    <text x="10" y="54" class="key">bigint</text><text x="60" y="54" class="cell">id</text><text x="162" y="54" class="key">PK</text>
+    <line class="grid" x1="0" y1="64" x2="185" y2="64"/>
+    <text x="10" y="84" class="key">bigint</text><text x="60" y="84" class="cell">trip_id</text><text x="162" y="84" class="key">FK</text>
+    <line class="grid" x1="0" y1="94" x2="185" y2="94"/>
+    <text x="10" y="114" class="key">bigint</text><text x="60" y="114" class="cell">author_user_id</text><text x="162" y="114" class="key">FK</text>
+    <line class="grid" x1="0" y1="124" x2="185" y2="124"/>
+    <text x="10" y="144" class="key">varchar</text><text x="60" y="144" class="cell">title</text>
+    <line class="grid" x1="0" y1="154" x2="185" y2="154"/>
+    <text x="10" y="174" class="key">text</text><text x="60" y="174" class="cell">description</text>
+    <line class="grid" x1="0" y1="184" x2="185" y2="184"/>
+    <text x="10" y="204" class="key">varchar</text><text x="60" y="204" class="cell">thumbnail_url</text>
+    <line class="grid" x1="0" y1="214" x2="185" y2="214"/>
+    <text x="10" y="234" class="key">int</text><text x="60" y="234" class="cell">view_count</text>
+    <line class="grid" x1="0" y1="244" x2="185" y2="244"/>
+    <text x="10" y="264" class="key">int</text><text x="60" y="264" class="cell">fork_count</text>
+  </g>
+
+  <!-- TRIP STOPS -->
+  <g transform="translate(220 1080)">
+    <rect class="table" width="190" height="240"/>
+    <line class="grid" x1="0" y1="34" x2="190" y2="34"/>
+    <line class="grid" x1="120" y1="0" x2="120" y2="240"/>
+    <text x="95" y="22" text-anchor="middle" class="name">TRIP_STOPS</text>
+    <text x="10" y="54" class="key">bigint</text><text x="62" y="54" class="cell">id</text><text x="166" y="54" class="key">PK</text>
+    <line class="grid" x1="0" y1="64" x2="190" y2="64"/>
+    <text x="10" y="84" class="key">bigint</text><text x="62" y="84" class="cell">trip_day_id</text><text x="166" y="84" class="key">FK</text>
+    <line class="grid" x1="0" y1="94" x2="190" y2="94"/>
+    <text x="10" y="114" class="key">bigint</text><text x="62" y="114" class="cell">place_id</text><text x="166" y="114" class="key">FK</text>
+    <line class="grid" x1="0" y1="124" x2="190" y2="124"/>
+    <text x="10" y="144" class="key">int</text><text x="62" y="144" class="cell">stop_order</text>
+    <line class="grid" x1="0" y1="154" x2="190" y2="154"/>
+    <text x="10" y="174" class="key">time</text><text x="62" y="174" class="cell">arrival_time</text>
+    <line class="grid" x1="0" y1="184" x2="190" y2="184"/>
+    <text x="10" y="204" class="key">time</text><text x="62" y="204" class="cell">leave_time</text>
+    <line class="grid" x1="0" y1="214" x2="190" y2="214"/>
+    <text x="10" y="234" class="key">varchar</text><text x="62" y="234" class="cell">transport_type</text>
+  </g>
+
+  <!-- ROUTE TAGS -->
+  <g transform="translate(1170 1185)">
+    <rect class="table" width="170" height="95"/>
+    <line class="grid" x1="0" y1="34" x2="170" y2="34"/>
+    <line class="grid" x1="112" y1="0" x2="112" y2="95"/>
+    <text x="85" y="22" text-anchor="middle" class="name">ROUTE_TAGS</text>
+    <text x="10" y="54" class="key">bigint</text><text x="60" y="54" class="cell">id</text><text x="148" y="54" class="key">PK</text>
+    <line class="grid" x1="0" y1="64" x2="170" y2="64"/>
+    <text x="10" y="84" class="key">bigint</text><text x="60" y="84" class="cell">community_route_id</text>
+    <line class="grid" x1="0" y1="94" x2="170" y2="94"/>
+  </g>
+
+  <!-- ROUTE FORKS -->
+  <g transform="translate(1450 1120)">
+    <rect class="table" width="190" height="165"/>
+    <line class="grid" x1="0" y1="34" x2="190" y2="34"/>
+    <line class="grid" x1="122" y1="0" x2="122" y2="165"/>
+    <text x="95" y="22" text-anchor="middle" class="name">ROUTE_FORKS</text>
+    <text x="10" y="54" class="key">bigint</text><text x="62" y="54" class="cell">id</text><text x="166" y="54" class="key">PK</text>
+    <line class="grid" x1="0" y1="64" x2="190" y2="64"/>
+    <text x="10" y="84" class="key">bigint</text><text x="62" y="84" class="cell">community_route_id</text><text x="166" y="84" class="key">FK</text>
+    <line class="grid" x1="0" y1="94" x2="190" y2="94"/>
+    <text x="10" y="114" class="key">bigint</text><text x="62" y="114" class="cell">user_id</text><text x="166" y="114" class="key">FK</text>
+    <line class="grid" x1="0" y1="124" x2="190" y2="124"/>
+    <text x="10" y="144" class="key">bigint</text><text x="62" y="144" class="cell">forked_trip_id</text><text x="166" y="144" class="key">FK</text>
+    <line class="grid" x1="0" y1="154" x2="190" y2="154"/>
+    <text x="10" y="174" class="key">varchar</text><text x="62" y="174" class="cell">fork_scope</text>
+  </g>
+
+  <!-- curves -->
+  <path class="line" d="M985 245 C985 278 930 250 930 295"/>
+  <circle class="dot" cx="985" cy="245" r="5"/>
+  <circle class="dot" cx="930" cy="295" r="5"/>
+
+  <path class="line" d="M985 245 C985 315 1220 250 1272 680"/>
+  <circle class="dot" cx="1272" cy="680" r="5"/>
+
+  <path class="line" d="M1070 130 C1210 130 1370 300 1450 680"/>
+  <circle class="dot" cx="1070" cy="130" r="5"/>
+  <circle class="dot" cx="1450" cy="680" r="5"/>
+
+  <path class="line" d="M1337 152 C1510 210 1515 520 1515 1120"/>
+  <circle class="dot" cx="1337" cy="152" r="5"/>
+  <circle class="dot" cx="1515" cy="1120" r="5"/>
+
+  <path class="line" d="M208 620 C208 760 110 690 102 780"/>
+  <circle class="dot" cx="208" cy="620" r="5"/>
+  <circle class="dot" cx="102" cy="780" r="5"/>
+
+  <path class="line" d="M208 620 C208 760 300 650 455 735"/>
+  <circle class="dot" cx="455" cy="735" r="5"/>
+
+  <path class="line" d="M208 620 C208 940 315 980 315 1080"/>
+  <circle class="dot" cx="315" cy="1080" r="5"/>
+
+  <path class="line" d="M520 565 C520 640 455 660 455 735"/>
+  <circle class="dot" cx="520" cy="565" r="5"/>
+
+  <path class="line" d="M940 585 C940 690 735 650 735 760"/>
+  <circle class="dot" cx="940" cy="585" r="5"/>
+  <circle class="dot" cx="735" cy="760" r="5"/>
+
+  <path class="line" d="M940 585 C940 685 990 665 990 760"/>
+  <circle class="dot" cx="990" cy="760" r="5"/>
+
+  <path class="line" d="M940 585 C940 740 1272 610 1272 680"/>
+  <circle class="dot" cx="1030" cy="440" r="5"/>
+
+  <path class="line" d="M735 940 C735 1060 410 1020 315 1080"/>
+  <circle class="dot" cx="315" cy="1320" r="5" opacity="0"/>
+
+  <path class="line" d="M1272 955 C1272 1080 1255 1100 1255 1185"/>
+  <circle class="dot" cx="1255" cy="1185" r="5"/>
+
+  <path class="line" d="M1365 820 C1500 910 1545 1010 1545 1120"/>
+  <circle class="dot" cx="1365" cy="820" r="5"/>
+
+  <path class="line" d="M1520 1010 C1610 1010 1605 930 1700 930"/>
+  <circle class="dot" cx="1520" cy="1010" r="5"/>
+  <circle class="dot" cx="1700" cy="930" r="5"/>
+</svg>

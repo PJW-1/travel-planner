@@ -2,24 +2,35 @@ import type { PlannerStop } from "@travel/shared";
 
 type PlannerCanvasProps = {
   stops: PlannerStop[];
+  summary: {
+    totalDistanceKm: number;
+    totalTravelMinutes: number;
+    optimizationScore: number;
+  };
 };
 
-export function PlannerCanvas({ stops }: PlannerCanvasProps) {
+function formatTravelTime(totalTravelMinutes: number) {
+  const hours = Math.floor(totalTravelMinutes / 60);
+  const minutes = totalTravelMinutes % 60;
+  return `${hours}h ${minutes}m`;
+}
+
+export function PlannerCanvas({ stops, summary }: PlannerCanvasProps) {
   return (
     <section className="planner-canvas">
       <div className="planner-canvas__pattern" />
       <div className="planner-summary">
         <div>
           <span>총 이동 거리</span>
-          <strong>14.8km</strong>
+          <strong>{summary.totalDistanceKm.toFixed(1)}km</strong>
         </div>
         <div>
           <span>예상 이동 시간</span>
-          <strong>1h 25m</strong>
+          <strong>{formatTravelTime(summary.totalTravelMinutes)}</strong>
         </div>
         <div>
           <span>동선 점수</span>
-          <strong>92/100</strong>
+          <strong>{summary.optimizationScore}/100</strong>
         </div>
       </div>
 

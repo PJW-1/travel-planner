@@ -1,18 +1,34 @@
-# API Skeleton
+# API
 
-초기 API 뼈대입니다.
+## Current focus
 
-## 현재 상태
+- local auth flow
+- MySQL user storage
+- Redis-backed session storage
 
-- `Express` 진입점만 구성
-- `trips`, `planner` 모듈 라우터 분리
-- 추후 `service`, `repository`, `infra` 계층을 붙이기 쉬운 구조
+## Environment
 
-## 추천 확장
+Copy `.env.example` to `.env` and fill in the MySQL values.
 
-1. `src/config`에 환경변수 검증 추가
-2. `src/database`에 MySQL 연결 계층 추가
-3. `src/modules/*`마다 `controller/service/repository` 구조 분리
-4. Redis 기반 캐시/큐 모듈 추가
-5. AI 영상 분석 작업은 HTTP 요청과 분리해 worker로 이동
+Important variables:
 
+- `MYSQL_HOST`
+- `MYSQL_PORT`
+- `MYSQL_USER`
+- `MYSQL_PASSWORD`
+- `MYSQL_DATABASE`
+- `SESSION_STORE=redis`
+- `REDIS_URL=redis://127.0.0.1:6379`
+
+## Run order
+
+1. Start MySQL
+2. Start Redis with Docker Desktop
+3. Run the auth schema SQL
+4. Start the API server
+
+## Auth session structure
+
+- user data is stored in MySQL
+- login session state is stored in Redis
+- browser auth uses an `httpOnly` session cookie

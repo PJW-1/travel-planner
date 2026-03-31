@@ -1,15 +1,43 @@
+import { useEffect, useState } from "react";
 import { Filter, Share2 } from "lucide-react";
+import type { MarketRoute } from "@travel/shared";
 import { PageHeader } from "@/components/PageHeader";
 import { RouteMarketCard } from "@/components/cards/RouteMarketCard";
-import { marketRoutes } from "@/data/mockData";
+import { fetchCommunityRoutes } from "@/lib/contentApi";
 
 export function CommunityPage() {
+  const [routes, setRoutes] = useState<MarketRoute[]>([]);
+
+  useEffect(() => {
+    let isMounted = true;
+
+    async function loadCommunityRoutes() {
+      try {
+        const data = await fetchCommunityRoutes();
+
+        if (isMounted) {
+          setRoutes(data.routes);
+        }
+      } catch {
+        if (isMounted) {
+          setRoutes([]);
+        }
+      }
+    }
+
+    void loadCommunityRoutes();
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
   return (
     <div className="single-column-page">
       <PageHeader
         eyebrow="루트 마켓"
         title="다른 여행자의 동선을 발견하고 내 일정으로 포크해보세요"
-        description="이 영역은 앞으로 재사용률, 저장 수, 검증 배지, 지역 큐레이션 기준까지 붙는 여행 경로 마켓으로 확장될 수 있습니다."
+        description="검증된 경로를 가져와 편집하고, 나만의 여행 계획에 맞게 다시 조합할 수 있는 커뮤니티형 루트 마켓입니다."
         actions={
           <>
             <button className="button button--secondary">
@@ -24,7 +52,7 @@ export function CommunityPage() {
       />
 
       <section className="route-grid">
-        {marketRoutes.map((route) => (
+        {routes.map((route) => (
           <RouteMarketCard key={route.id} route={route} />
         ))}
       </section>

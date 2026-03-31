@@ -1,0 +1,251 @@
+<svg width="2000" height="1280" viewBox="0 0 2000 1280" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <style>
+    .bg { fill: #f6f1e9; }
+    .card { fill: #ffffff; stroke: #d9dde5; stroke-width: 2; rx: 18; }
+    .head { fill: #e9f0ff; }
+    .title { fill: #0f172a; font: 700 21px 'Pretendard Variable', 'Noto Sans KR', sans-serif; }
+    .field { fill: #4b5563; font: 500 14px 'Pretendard Variable', 'Noto Sans KR', sans-serif; }
+    .caption { fill: #64748b; font: 500 16px 'Pretendard Variable', 'Noto Sans KR', sans-serif; }
+    .line { stroke: #94a3b8; stroke-width: 2.5; fill: none; marker-end: url(#arrow); }
+    .label { fill: #2563eb; font: 600 13px 'Pretendard Variable', 'Noto Sans KR', sans-serif; }
+    .group { fill: #90a4c31a; stroke: #d7dce5; stroke-width: 1.5; stroke-dasharray: 8 8; rx: 24; }
+    .group-title { fill: #475569; font: 700 15px 'Pretendard Variable', 'Noto Sans KR', sans-serif; }
+  </style>
+
+  <defs>
+    <marker id="arrow" markerWidth="10" markerHeight="10" refX="9" refY="5" orient="auto">
+      <path d="M0,0 L10,5 L0,10 z" fill="#94a3b8"/>
+    </marker>
+  </defs>
+
+  <rect class="bg" width="2000" height="1280"/>
+  <text x="70" y="68" class="title" style="font-size:32px;">Travel Master ERD</text>
+  <text x="70" y="98" class="caption">선이 테이블 위를 지나가지 않도록 정리한 버전</text>
+
+  <rect class="group" x="50" y="130" width="500" height="760"/>
+  <text x="74" y="160" class="group-title">Account / Place / Trend</text>
+
+  <rect class="group" x="600" y="130" width="670" height="760"/>
+  <text x="624" y="160" class="group-title">Trip Planning Core</text>
+
+  <rect class="group" x="1320" y="130" width="630" height="760"/>
+  <text x="1344" y="160" class="group-title">Community / AI</text>
+
+  <!-- USERS -->
+  <g transform="translate(90 200)">
+    <rect class="card" width="300" height="220"/>
+    <rect class="card head" width="300" height="52"/>
+    <text x="22" y="33" class="title">USERS</text>
+    <text x="22" y="82" class="field">PK id</text>
+    <text x="22" y="108" class="field">email</text>
+    <text x="22" y="134" class="field">password_hash</text>
+    <text x="22" y="160" class="field">nickname</text>
+    <text x="22" y="186" class="field">provider, status</text>
+    <text x="22" y="212" class="field">last_login_at</text>
+  </g>
+
+  <!-- PLACES -->
+  <g transform="translate(90 500)">
+    <rect class="card" width="300" height="230"/>
+    <rect class="card head" width="300" height="52"/>
+    <text x="22" y="33" class="title">PLACES</text>
+    <text x="22" y="82" class="field">PK id</text>
+    <text x="22" y="108" class="field">name</text>
+    <text x="22" y="134" class="field">category</text>
+    <text x="22" y="160" class="field">address</text>
+    <text x="22" y="186" class="field">lat, lng</text>
+    <text x="22" y="212" class="field">region, source_type</text>
+  </g>
+
+  <!-- TREND_SNAPSHOTS -->
+  <g transform="translate(90 790)">
+    <rect class="card" width="300" height="170"/>
+    <rect class="card head" width="300" height="52"/>
+    <text x="22" y="33" class="title">TREND_SNAPSHOTS</text>
+    <text x="22" y="82" class="field">PK id</text>
+    <text x="22" y="108" class="field">title</text>
+    <text x="22" y="134" class="field">rank_no, tag_name</text>
+    <text x="22" y="160" class="field">region, snapshot_date</text>
+  </g>
+
+  <!-- TRIPS -->
+  <g transform="translate(660 200)">
+    <rect class="card" width="320" height="250"/>
+    <rect class="card head" width="320" height="52"/>
+    <text x="22" y="33" class="title">TRIPS</text>
+    <text x="22" y="82" class="field">PK id</text>
+    <text x="22" y="108" class="field">FK user_id</text>
+    <text x="22" y="134" class="field">title</text>
+    <text x="22" y="160" class="field">destination</text>
+    <text x="22" y="186" class="field">start_date, end_date</text>
+    <text x="22" y="212" class="field">days, theme_json</text>
+    <text x="22" y="238" class="field">status, is_public</text>
+  </g>
+
+  <!-- TRIP_DAYS -->
+  <g transform="translate(660 540)">
+    <rect class="card" width="280" height="190"/>
+    <rect class="card head" width="280" height="52"/>
+    <text x="22" y="33" class="title">TRIP_DAYS</text>
+    <text x="22" y="82" class="field">PK id</text>
+    <text x="22" y="108" class="field">FK trip_id</text>
+    <text x="22" y="134" class="field">day_number</text>
+    <text x="22" y="160" class="field">date, title, notes</text>
+  </g>
+
+  <!-- TRIP_ANALYSES -->
+  <g transform="translate(660 790)">
+    <rect class="card" width="320" height="200"/>
+    <rect class="card head" width="320" height="52"/>
+    <text x="22" y="33" class="title">TRIP_ANALYSES</text>
+    <text x="22" y="82" class="field">PK id</text>
+    <text x="22" y="108" class="field">FK trip_id</text>
+    <text x="22" y="134" class="field">total_distance_km</text>
+    <text x="22" y="160" class="field">total_travel_minutes</text>
+    <text x="22" y="186" class="field">optimization_score, fatigue_score</text>
+  </g>
+
+  <!-- FAVORITES -->
+  <g transform="translate(1030 540)">
+    <rect class="card" width="200" height="160"/>
+    <rect class="card head" width="200" height="52"/>
+    <text x="22" y="33" class="title">FAVORITES</text>
+    <text x="22" y="82" class="field">PK id</text>
+    <text x="22" y="108" class="field">FK user_id</text>
+    <text x="22" y="134" class="field">FK place_id</text>
+  </g>
+
+  <!-- TRIP_STOPS -->
+  <g transform="translate(1030 220)">
+    <rect class="card" width="260" height="260"/>
+    <rect class="card head" width="260" height="52"/>
+    <text x="22" y="33" class="title">TRIP_STOPS</text>
+    <text x="22" y="82" class="field">PK id</text>
+    <text x="22" y="108" class="field">FK trip_day_id</text>
+    <text x="22" y="134" class="field">FK place_id</text>
+    <text x="22" y="160" class="field">stop_order</text>
+    <text x="22" y="186" class="field">arrival_time, leave_time</text>
+    <text x="22" y="212" class="field">transport, distance, congestion</text>
+    <text x="22" y="238" class="field">memo</text>
+  </g>
+
+  <!-- COMMUNITY_ROUTES -->
+  <g transform="translate(1370 210)">
+    <rect class="card" width="330" height="250"/>
+    <rect class="card head" width="330" height="52"/>
+    <text x="22" y="33" class="title">COMMUNITY_ROUTES</text>
+    <text x="22" y="82" class="field">PK id</text>
+    <text x="22" y="108" class="field">FK trip_id</text>
+    <text x="22" y="134" class="field">FK author_user_id</text>
+    <text x="22" y="160" class="field">title, description</text>
+    <text x="22" y="186" class="field">thumbnail_url</text>
+    <text x="22" y="212" class="field">view_count, like_count, fork_count</text>
+    <text x="22" y="238" class="field">status, published_at</text>
+  </g>
+
+  <!-- ROUTE_TAGS -->
+  <g transform="translate(1370 560)">
+    <rect class="card" width="240" height="160"/>
+    <rect class="card head" width="240" height="52"/>
+    <text x="22" y="33" class="title">ROUTE_TAGS</text>
+    <text x="22" y="82" class="field">PK id</text>
+    <text x="22" y="108" class="field">FK community_route_id</text>
+    <text x="22" y="134" class="field">tag_name</text>
+  </g>
+
+  <!-- ROUTE_FORKS -->
+  <g transform="translate(1660 560)">
+    <rect class="card" width="250" height="180"/>
+    <rect class="card head" width="250" height="52"/>
+    <text x="22" y="33" class="title">ROUTE_FORKS</text>
+    <text x="22" y="82" class="field">PK id</text>
+    <text x="22" y="108" class="field">FK community_route_id</text>
+    <text x="22" y="134" class="field">FK user_id, forked_trip_id</text>
+    <text x="22" y="160" class="field">fork_scope</text>
+  </g>
+
+  <!-- VIDEO_EXTRACTIONS -->
+  <g transform="translate(1370 820)">
+    <rect class="card" width="280" height="190"/>
+    <rect class="card head" width="280" height="52"/>
+    <text x="22" y="33" class="title">VIDEO_EXTRACTIONS</text>
+    <text x="22" y="82" class="field">PK id</text>
+    <text x="22" y="108" class="field">FK user_id</text>
+    <text x="22" y="134" class="field">youtube_url</text>
+    <text x="22" y="160" class="field">status, video_title</text>
+    <text x="22" y="186" class="field">requested_at, completed_at</text>
+  </g>
+
+  <!-- VIDEO_EXTRACTED_PLACES -->
+  <g transform="translate(1700 820)">
+    <rect class="card" width="260" height="210"/>
+    <rect class="card head" width="260" height="52"/>
+    <text x="22" y="33" class="title">VIDEO_EXTRACTED_PLACES</text>
+    <text x="22" y="82" class="field">PK id</text>
+    <text x="22" y="108" class="field">FK video_extraction_id</text>
+    <text x="22" y="134" class="field">FK place_id</text>
+    <text x="22" y="160" class="field">raw_place_name</text>
+    <text x="22" y="186" class="field">confidence, matched_latlng</text>
+  </g>
+
+  <!-- connections -->
+  <!-- users to trips -->
+  <path class="line" d="M390 310 L520 310 L520 325 L660 325"/>
+  <text x="534" y="300" class="label">1:N</text>
+
+  <!-- users to favorites -->
+  <path class="line" d="M390 350 L540 350 L540 620 L1030 620"/>
+  <text x="552" y="606" class="label">1:N</text>
+
+  <!-- users to community_routes -->
+  <path class="line" d="M390 390 L560 390 L560 150 L1535 150 L1535 210"/>
+  <text x="980" y="136" class="label">1:N</text>
+
+  <!-- users to route_forks -->
+  <path class="line" d="M390 405 L575 405 L575 1110 L1785 1110 L1785 740"/>
+  <text x="1120" y="1094" class="label">1:N</text>
+
+  <!-- users to video_extractions -->
+  <path class="line" d="M390 370 L550 370 L550 1060 L1510 1060 L1510 1010"/>
+  <text x="1040" y="1044" class="label">1:N</text>
+
+  <!-- places to trip_stops -->
+  <path class="line" d="M390 615 L520 615 L520 490 L1160 490 L1160 480"/>
+  <text x="840" y="474" class="label">1:N</text>
+
+  <!-- places to favorites -->
+  <path class="line" d="M390 630 L480 630 L480 680 L1030 680"/>
+  <text x="720" y="665" class="label">1:N</text>
+
+  <!-- places to video_extracted_places -->
+  <path class="line" d="M390 650 L500 650 L500 1140 L1830 1140 L1830 1030"/>
+  <text x="1080" y="1124" class="label">1:N</text>
+
+  <!-- trips to trip_days -->
+  <path class="line" d="M820 450 L820 500 L800 500 L800 540"/>
+  <text x="832" y="496" class="label">1:N</text>
+
+  <!-- trips to trip_analyses -->
+  <path class="line" d="M900 450 L900 790"/>
+  <text x="914" y="640" class="label">1:N</text>
+
+  <!-- trips to community_routes -->
+  <path class="line" d="M980 325 L1180 325 L1180 335 L1370 335"/>
+  <text x="1172" y="308" class="label">1:1/N</text>
+
+  <!-- trip_days to trip_stops -->
+  <path class="line" d="M940 635 L980 635 L980 350 L1030 350"/>
+  <text x="954" y="620" class="label">1:N</text>
+
+  <!-- community_routes to route_tags -->
+  <path class="line" d="M1490 460 L1490 510 L1490 510 L1490 560"/>
+  <text x="1504" y="514" class="label">1:N</text>
+
+  <!-- community_routes to route_forks -->
+  <path class="line" d="M1700 340 L1820 340 L1820 560"/>
+  <text x="1832" y="460" class="label">1:N</text>
+
+  <!-- video_extractions to extracted_places -->
+  <path class="line" d="M1650 915 L1700 915"/>
+  <text x="1662" y="900" class="label">1:N</text>
+</svg>

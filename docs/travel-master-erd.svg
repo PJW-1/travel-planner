@@ -1,0 +1,229 @@
+<svg width="1800" height="1180" viewBox="0 0 1800 1180" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <style>
+    .bg { fill: #f6f1e9; }
+    .panel { fill: #ffffff; stroke: #d7dbe3; stroke-width: 2; rx: 18; }
+    .title { fill: #0f172a; font: 700 20px 'Pretendard Variable', 'Noto Sans KR', sans-serif; }
+    .field { fill: #475569; font: 500 14px 'Pretendard Variable', 'Noto Sans KR', sans-serif; }
+    .header { fill: #e8eefc; }
+    .line { stroke: #94a3b8; stroke-width: 2.5; fill: none; }
+    .label { fill: #2563eb; font: 600 13px 'Pretendard Variable', 'Noto Sans KR', sans-serif; }
+    .caption { fill: #64748b; font: 500 16px 'Pretendard Variable', 'Noto Sans KR', sans-serif; }
+  </style>
+
+  <rect class="bg" x="0" y="0" width="1800" height="1180"/>
+  <text x="80" y="70" class="title" style="font-size:30px;">Travel Master ERD</text>
+  <text x="80" y="102" class="caption">홈, 플래너, AI 랩, 커뮤니티, 마이페이지를 DB 기반으로 전환하는 구조</text>
+
+  <defs>
+    <marker id="arrow" markerWidth="10" markerHeight="10" refX="9" refY="5" orient="auto" markerUnits="strokeWidth">
+      <path d="M0,0 L10,5 L0,10 z" fill="#94a3b8"/>
+    </marker>
+  </defs>
+
+  <!-- USERS -->
+  <g transform="translate(80 150)">
+    <rect class="panel" width="260" height="210"/>
+    <rect class="panel header" width="260" height="48"/>
+    <text x="20" y="30" class="title">USERS</text>
+    <text x="20" y="74" class="field">PK id</text>
+    <text x="20" y="98" class="field">email</text>
+    <text x="20" y="122" class="field">password_hash</text>
+    <text x="20" y="146" class="field">nickname</text>
+    <text x="20" y="170" class="field">provider</text>
+    <text x="20" y="194" class="field">status, last_login_at</text>
+  </g>
+
+  <!-- PLACES -->
+  <g transform="translate(80 470)">
+    <rect class="panel" width="260" height="220"/>
+    <rect class="panel header" width="260" height="48"/>
+    <text x="20" y="30" class="title">PLACES</text>
+    <text x="20" y="74" class="field">PK id</text>
+    <text x="20" y="98" class="field">name</text>
+    <text x="20" y="122" class="field">category</text>
+    <text x="20" y="146" class="field">address</text>
+    <text x="20" y="170" class="field">lat, lng</text>
+    <text x="20" y="194" class="field">region, source_type</text>
+  </g>
+
+  <!-- TRIPS -->
+  <g transform="translate(430 130)">
+    <rect class="panel" width="290" height="240"/>
+    <rect class="panel header" width="290" height="48"/>
+    <text x="20" y="30" class="title">TRIPS</text>
+    <text x="20" y="74" class="field">PK id</text>
+    <text x="20" y="98" class="field">FK user_id</text>
+    <text x="20" y="122" class="field">title</text>
+    <text x="20" y="146" class="field">destination</text>
+    <text x="20" y="170" class="field">start_date, end_date</text>
+    <text x="20" y="194" class="field">days, theme_json</text>
+    <text x="20" y="218" class="field">status, is_public</text>
+  </g>
+
+  <!-- TRIP_DAYS -->
+  <g transform="translate(820 120)">
+    <rect class="panel" width="250" height="200"/>
+    <rect class="panel header" width="250" height="48"/>
+    <text x="20" y="30" class="title">TRIP_DAYS</text>
+    <text x="20" y="74" class="field">PK id</text>
+    <text x="20" y="98" class="field">FK trip_id</text>
+    <text x="20" y="122" class="field">day_number</text>
+    <text x="20" y="146" class="field">date</text>
+    <text x="20" y="170" class="field">title, notes</text>
+  </g>
+
+  <!-- TRIP_STOPS -->
+  <g transform="translate(1140 90)">
+    <rect class="panel" width="330" height="290"/>
+    <rect class="panel header" width="330" height="48"/>
+    <text x="20" y="30" class="title">TRIP_STOPS</text>
+    <text x="20" y="74" class="field">PK id</text>
+    <text x="20" y="98" class="field">FK trip_day_id</text>
+    <text x="20" y="122" class="field">FK place_id</text>
+    <text x="20" y="146" class="field">stop_order</text>
+    <text x="20" y="170" class="field">arrival_time, leave_time</text>
+    <text x="20" y="194" class="field">transport_type</text>
+    <text x="20" y="218" class="field">travel_minutes_from_prev</text>
+    <text x="20" y="242" class="field">distance_km_from_prev</text>
+    <text x="20" y="266" class="field">congestion_score, memo</text>
+  </g>
+
+  <!-- TRIP_ANALYSES -->
+  <g transform="translate(820 390)">
+    <rect class="panel" width="290" height="210"/>
+    <rect class="panel header" width="290" height="48"/>
+    <text x="20" y="30" class="title">TRIP_ANALYSES</text>
+    <text x="20" y="74" class="field">PK id</text>
+    <text x="20" y="98" class="field">FK trip_id</text>
+    <text x="20" y="122" class="field">total_distance_km</text>
+    <text x="20" y="146" class="field">total_travel_minutes</text>
+    <text x="20" y="170" class="field">optimization_score</text>
+    <text x="20" y="194" class="field">fatigue_score, warning_json</text>
+  </g>
+
+  <!-- FAVORITES -->
+  <g transform="translate(430 470)">
+    <rect class="panel" width="250" height="180"/>
+    <rect class="panel header" width="250" height="48"/>
+    <text x="20" y="30" class="title">FAVORITES</text>
+    <text x="20" y="74" class="field">PK id</text>
+    <text x="20" y="98" class="field">FK user_id</text>
+    <text x="20" y="122" class="field">FK place_id</text>
+    <text x="20" y="146" class="field">created_at</text>
+  </g>
+
+  <!-- COMMUNITY_ROUTES -->
+  <g transform="translate(430 760)">
+    <rect class="panel" width="310" height="250"/>
+    <rect class="panel header" width="310" height="48"/>
+    <text x="20" y="30" class="title">COMMUNITY_ROUTES</text>
+    <text x="20" y="74" class="field">PK id</text>
+    <text x="20" y="98" class="field">FK trip_id</text>
+    <text x="20" y="122" class="field">FK author_user_id</text>
+    <text x="20" y="146" class="field">title, description</text>
+    <text x="20" y="170" class="field">thumbnail_url</text>
+    <text x="20" y="194" class="field">view_count, like_count, fork_count</text>
+    <text x="20" y="218" class="field">status, published_at</text>
+  </g>
+
+  <!-- ROUTE_TAGS -->
+  <g transform="translate(850 760)">
+    <rect class="panel" width="230" height="160"/>
+    <rect class="panel header" width="230" height="48"/>
+    <text x="20" y="30" class="title">ROUTE_TAGS</text>
+    <text x="20" y="74" class="field">PK id</text>
+    <text x="20" y="98" class="field">FK community_route_id</text>
+    <text x="20" y="122" class="field">tag_name</text>
+  </g>
+
+  <!-- ROUTE_FORKS -->
+  <g transform="translate(1140 740)">
+    <rect class="panel" width="300" height="190"/>
+    <rect class="panel header" width="300" height="48"/>
+    <text x="20" y="30" class="title">ROUTE_FORKS</text>
+    <text x="20" y="74" class="field">PK id</text>
+    <text x="20" y="98" class="field">FK community_route_id</text>
+    <text x="20" y="122" class="field">FK user_id</text>
+    <text x="20" y="146" class="field">FK forked_trip_id</text>
+    <text x="20" y="170" class="field">fork_scope, created_at</text>
+  </g>
+
+  <!-- VIDEO_EXTRACTIONS -->
+  <g transform="translate(1510 130)">
+    <rect class="panel" width="250" height="200"/>
+    <rect class="panel header" width="250" height="48"/>
+    <text x="20" y="30" class="title">VIDEO_EXTRACTIONS</text>
+    <text x="20" y="74" class="field">PK id</text>
+    <text x="20" y="98" class="field">FK user_id</text>
+    <text x="20" y="122" class="field">youtube_url</text>
+    <text x="20" y="146" class="field">status, video_title</text>
+    <text x="20" y="170" class="field">requested_at, completed_at</text>
+  </g>
+
+  <!-- VIDEO_EXTRACTED_PLACES -->
+  <g transform="translate(1470 430)">
+    <rect class="panel" width="290" height="220"/>
+    <rect class="panel header" width="290" height="48"/>
+    <text x="20" y="30" class="title">VIDEO_EXTRACTED_PLACES</text>
+    <text x="20" y="74" class="field">PK id</text>
+    <text x="20" y="98" class="field">FK video_extraction_id</text>
+    <text x="20" y="122" class="field">FK place_id</text>
+    <text x="20" y="146" class="field">raw_place_name</text>
+    <text x="20" y="170" class="field">confidence_score</text>
+    <text x="20" y="194" class="field">matched_lat, matched_lng</text>
+  </g>
+
+  <!-- TREND_SNAPSHOTS -->
+  <g transform="translate(80 800)">
+    <rect class="panel" width="260" height="180"/>
+    <rect class="panel header" width="260" height="48"/>
+    <text x="20" y="30" class="title">TREND_SNAPSHOTS</text>
+    <text x="20" y="74" class="field">PK id</text>
+    <text x="20" y="98" class="field">title</text>
+    <text x="20" y="122" class="field">rank_no, tag_name</text>
+    <text x="20" y="146" class="field">region, snapshot_date</text>
+  </g>
+
+  <!-- Lines -->
+  <path class="line" d="M340 255 C380 255 390 250 430 250" marker-end="url(#arrow)"/>
+  <text x="355" y="242" class="label">1:N</text>
+
+  <path class="line" d="M720 220 C770 220 775 220 820 220" marker-end="url(#arrow)"/>
+  <text x="760" y="206" class="label">1:N</text>
+
+  <path class="line" d="M1070 220 C1100 220 1110 220 1140 220" marker-end="url(#arrow)"/>
+  <text x="1092" y="206" class="label">1:N</text>
+
+  <path class="line" d="M340 580 C390 580 380 560 430 560" marker-end="url(#arrow)"/>
+  <text x="360" y="565" class="label">1:N</text>
+
+  <path class="line" d="M340 610 C690 610 790 250 1140 250" marker-end="url(#arrow)"/>
+  <text x="710" y="592" class="label">1:N</text>
+
+  <path class="line" d="M560 370 C560 430 560 430 560 470" marker-end="url(#arrow)"/>
+  <text x="572" y="422" class="label">1:N</text>
+
+  <path class="line" d="M720 300 C780 300 760 470 820 470" marker-end="url(#arrow)"/>
+  <text x="752" y="355" class="label">1:N</text>
+
+  <path class="line" d="M560 370 C560 650 560 650 560 760" marker-end="url(#arrow)"/>
+  <text x="574" y="640" class="label">1:1/N</text>
+
+  <path class="line" d="M340 255 C390 255 390 850 430 850" marker-end="url(#arrow)"/>
+  <text x="352" y="540" class="label">1:N</text>
+
+  <path class="line" d="M740 850 C790 850 800 840 850 840" marker-end="url(#arrow)"/>
+  <text x="786" y="828" class="label">1:N</text>
+
+  <path class="line" d="M740 890 C920 890 960 835 1140 835" marker-end="url(#arrow)"/>
+  <text x="925" y="874" class="label">1:N</text>
+
+  <path class="line" d="M340 250 C900 250 900 170 1510 170" marker-end="url(#arrow)"/>
+  <text x="1220" y="156" class="label">1:N</text>
+
+  <path class="line" d="M340 570 C900 570 900 520 1470 520" marker-end="url(#arrow)"/>
+  <text x="1220" y="504" class="label">1:N</text>
+
+  <path class="line" d="M1760 230 C1780 230 1780 520 1760 520" marker-end="url(#arrow)"/>
+  <text x="1710" y="382" class="label">1:N</text>
+</svg>

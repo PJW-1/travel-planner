@@ -1,5 +1,7 @@
-import { Compass, MapPin, Sparkles, UserCircle2 } from "lucide-react";
+import { useEffect, useState } from "react";
+import { MapPin, Sparkles, UserCircle2 } from "lucide-react";
 import { NavLink, Outlet } from "react-router-dom";
+import { fetchMe } from "@/lib/authApi";
 
 const navItems = [
   { to: "/home", label: "홈" },
@@ -8,7 +10,48 @@ const navItems = [
   { to: "/community", label: "커뮤니티" },
 ];
 
+type AuthUser = {
+  userId: number;
+  email: string;
+  nickname: string;
+  provider: string;
+  status: string;
+  createdAt: string;
+};
+
 export function AppShell() {
+  const [authUser, setAuthUser] = useState<AuthUser | null>(null);
+
+  useEffect(() => {
+    let isMounted = true;
+
+    async function loadAuth() {
+      try {
+        const response = await fetchMe();
+
+        if (isMounted) {
+          setAuthUser(response.user);
+        }
+      } catch {
+        if (isMounted) {
+          setAuthUser(null);
+        }
+      }
+    }
+
+    function handleAuthChanged() {
+      void loadAuth();
+    }
+
+    void loadAuth();
+    window.addEventListener("auth-changed", handleAuthChanged);
+
+    return () => {
+      isMounted = false;
+      window.removeEventListener("auth-changed", handleAuthChanged);
+    };
+  }, []);
+
   return (
     <div className="app-shell">
       <header className="topbar">
@@ -35,12 +78,9 @@ export function AppShell() {
         </nav>
 
         <div className="topbar__actions">
-          <button className="ghost-chip">
-            <Compass size={16} />
-            한국 서비스 베타
-          </button>
-          <NavLink to="/my" className="profile-link">
-            <UserCircle2 size={18} />내 보관함
+          <NavLink to={authUser ? "/my" : "/login"} className="profile-link">
+            <UserCircle2 size={18} />
+            {authUser ? "마이페이지" : "로그인"}
           </NavLink>
         </div>
       </header>

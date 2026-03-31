@@ -1,15 +1,41 @@
+import { useEffect, useState } from "react";
 import { CheckCircle2, Plus, WandSparkles, Youtube } from "lucide-react";
 import { PageHeader } from "@/components/PageHeader";
-
-const extractedPlaces = ["성수동 팝업스토어", "한강 라면 스팟", "연무장길 감성 카페"];
+import { fetchAiLabOverview } from "@/lib/contentApi";
 
 export function AiLabPage() {
+  const [extractedPlaces, setExtractedPlaces] = useState<string[]>([]);
+
+  useEffect(() => {
+    let isMounted = true;
+
+    async function loadAiLabOverview() {
+      try {
+        const data = await fetchAiLabOverview();
+
+        if (isMounted) {
+          setExtractedPlaces(data.extractedPlaces);
+        }
+      } catch {
+        if (isMounted) {
+          setExtractedPlaces([]);
+        }
+      }
+    }
+
+    void loadAiLabOverview();
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
   return (
     <div className="single-column-page">
       <PageHeader
         eyebrow="AI 장소 추출"
         title="영상 속 장소를 읽어 일정 후보로 바꾸는 분석 워크플로우"
-        description="실서비스에서는 영상 URL 입력, 프레임과 자막 분석, 장소 후보 검증, 좌표 변환, 일정 반영까지 단계적으로 이어지는 구조가 됩니다."
+        description="유튜브 URL 입력, 프레임과 자막 분석, 장소 후보 검증, 좌표 변환, 일정 반영까지 단계적으로 이어지는 구조입니다."
       />
 
       <section className="lab-hero">
@@ -47,9 +73,9 @@ export function AiLabPage() {
             <div>
               <h3>처리 흐름</h3>
               <ol className="steps">
-                <li>영상 메타데이터를 수집하고 자막과 프레임을 분석합니다</li>
-                <li>장소 후보를 추출하고 좌표를 검증합니다</li>
-                <li>여행 목적, 태그, 일정 밀도 규칙에 맞춰 플래너에 반영합니다</li>
+                <li>영상 메타데이터를 수집하고 자막과 프레임을 분석합니다.</li>
+                <li>장소 후보를 추출하고 좌표를 검증합니다.</li>
+                <li>여행 목적, 태그, 일정 배치 규칙에 맞춰 플래너에 반영합니다.</li>
               </ol>
             </div>
           </article>
