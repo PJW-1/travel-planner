@@ -1,0 +1,17 @@
+{
+  "name": "@travel/api",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "dev": "node --watch src/server.js",
+    "build": "echo \"Add TS/Build pipeline when API implementation starts\"",
+    "lint": "echo \"API lint not configured yet\""
+  },
+  "dependencies": {
+    "@travel/shared": "0.1.0",
+    "cors": "^2.8.5",
+    "express": "^4.21.1"
+  }
+}
+

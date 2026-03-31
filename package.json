@@ -1,0 +1,21 @@
+{
+  "name": "travel-master",
+  "private": true,
+  "version": "0.1.0",
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "dev:web": "npm run dev -w @travel/web",
+    "dev:api": "npm run dev -w @travel/api",
+    "build": "npm run build -ws",
+    "lint": "npm run lint -ws"
+  },
+  "engines": {
+    "node": ">=20.0.0"
+  },
+  "devDependencies": {
+    "prettier": "^3.8.1"
+  }
+}
