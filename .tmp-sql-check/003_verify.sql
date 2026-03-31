@@ -1,4 +1,4 @@
-USE travel;
+﻿USE travel_verify4;
 SET NAMES utf8mb4;
 
 SET @nickname_seed_owner = CONVERT(0xECA095EB8F99ED9B88 USING utf8mb4);
@@ -485,3 +485,4 @@ ON DUPLICATE KEY UPDATE
   tag_name = VALUES(tag_name),
   region = VALUES(region),
   snapshot_date = VALUES(snapshot_date);
+
