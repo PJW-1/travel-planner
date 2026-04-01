@@ -1,18 +1,28 @@
-import { Navigation } from "lucide-react";
+import { Navigation, PencilLine, Trash2 } from "lucide-react";
 import type { PlannerStop } from "@travel/shared";
 
 type TimelineStopCardProps = {
   stop: PlannerStop;
   index: number;
   last: boolean;
+  onEdit?: (stop: PlannerStop) => void;
+  onDelete?: (stop: PlannerStop) => void;
+  editing?: boolean;
 };
 
-export function TimelineStopCard({ stop, index, last }: TimelineStopCardProps) {
+export function TimelineStopCard({
+  stop,
+  index,
+  last,
+  onEdit,
+  onDelete,
+  editing = false,
+}: TimelineStopCardProps) {
   return (
     <div className="timeline-stop">
       <div className="timeline-stop__index">{index + 1}</div>
       {!last ? <div className="timeline-stop__line" /> : null}
-      <article className="timeline-stop__card">
+      <article className={editing ? "timeline-stop__card is-editing" : "timeline-stop__card"}>
         <div className="timeline-stop__header">
           <div>
             <h3>{stop.name}</h3>
@@ -20,12 +30,32 @@ export function TimelineStopCard({ stop, index, last }: TimelineStopCardProps) {
           </div>
           <span>{stop.time}</span>
         </div>
+
         <div className="timeline-stop__details">
           <span>혼잡도 {stop.congestion}%</span>
           <span>체류 {stop.stayMinutes}분</span>
+          {stop.distanceKm ? <span>이동 {stop.distanceKm.toFixed(1)}km</span> : null}
           {stop.forked ? <span className="status-chip">포크됨</span> : null}
         </div>
+
+        {onEdit || onDelete ? (
+          <div className="timeline-stop__actions">
+            {onEdit ? (
+              <button type="button" onClick={() => onEdit(stop)}>
+                <PencilLine size={14} />
+                수정
+              </button>
+            ) : null}
+            {onDelete ? (
+              <button type="button" className="is-danger" onClick={() => onDelete(stop)}>
+                <Trash2 size={14} />
+                삭제
+              </button>
+            ) : null}
+          </div>
+        ) : null}
       </article>
+
       {!last ? (
         <div className="timeline-stop__move">
           <Navigation size={12} />

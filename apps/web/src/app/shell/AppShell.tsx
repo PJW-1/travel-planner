@@ -61,7 +61,7 @@ export function AppShell() {
           </div>
           <div>
             <p className="eyebrow">지능형 여행 설계 플랫폼</p>
-            <strong>Travel Master</strong>
+            <strong>TripFlow</strong>
           </div>
         </NavLink>
 

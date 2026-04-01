@@ -12,13 +12,19 @@ type PlannerCanvasProps = {
 function formatTravelTime(totalTravelMinutes: number) {
   const hours = Math.floor(totalTravelMinutes / 60);
   const minutes = totalTravelMinutes % 60;
-  return `${hours}h ${minutes}m`;
+
+  if (hours === 0) {
+    return `${minutes}분`;
+  }
+
+  return `${hours}시간 ${minutes}분`;
 }
 
 export function PlannerCanvas({ stops, summary }: PlannerCanvasProps) {
   return (
     <section className="planner-canvas">
       <div className="planner-canvas__pattern" />
+
       <div className="planner-summary">
         <div>
           <span>총 이동 거리</span>
@@ -33,6 +39,13 @@ export function PlannerCanvas({ stops, summary }: PlannerCanvasProps) {
           <strong>{summary.optimizationScore}/100</strong>
         </div>
       </div>
+
+      {stops.length === 0 ? (
+        <div className="planner-canvas__empty">
+          <strong>아직 배치된 장소가 없습니다.</strong>
+          <p>오른쪽 편집 카드에서 장소를 추가하면 지도 위 노드와 동선 요약이 바로 반영됩니다.</p>
+        </div>
+      ) : null}
 
       {stops.map((stop) => (
         <article

@@ -15,6 +15,10 @@ export type PlannerStop = {
   congestion: number;
   stayMinutes: number;
   travelMinutes: number;
+  transportType?: string;
+  stopOrder?: number;
+  dayNumber?: number;
+  distanceKm?: number;
   forked?: boolean;
   position: {
     x: number;

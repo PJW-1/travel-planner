@@ -32,6 +32,15 @@ export function InsightPanel({ insights }: InsightPanelProps) {
       </div>
 
       <div className="insight-panel__list">
+        {insights.length === 0 ? (
+          <article className="insight-card">
+            <div>
+              <h3>분석 대기 중</h3>
+              <p>장소를 추가하고 저장하면 이동 시간과 피로도 경고를 이곳에서 확인할 수 있습니다.</p>
+            </div>
+          </article>
+        ) : null}
+
         {insights.map((item) => (
           <article key={item.title} className="insight-card">
             <div className="insight-card__icon">{renderIcon(item.iconKey)}</div>

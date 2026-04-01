@@ -548,6 +548,29 @@ button {
   gap: 20px;
 }
 
+.setup-builder {
+  display: grid;
+  gap: 20px;
+}
+
+.setup-builder__grid {
+  display: grid;
+  grid-template-columns: minmax(360px, 420px) minmax(0, 1fr);
+  gap: 20px;
+}
+
+.setup-builder__footer {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 18px;
+}
+
+.planner-main {
+  display: grid;
+  gap: 20px;
+  align-content: start;
+}
+
 .planner-sidebar {
   display: grid;
   grid-template-rows: auto minmax(0, 1fr) auto;
@@ -563,8 +586,14 @@ button {
   gap: 12px;
 }
 
+.planner-sidebar__top--stack {
+  align-items: stretch;
+  flex-direction: column;
+}
+
 .day-switcher {
   display: flex;
+  flex-wrap: wrap;
   gap: 6px;
 }
 
@@ -585,6 +614,110 @@ button {
 .planner-sidebar__list {
   display: grid;
   gap: 10px;
+}
+
+.planner-trip-picker,
+.planner-form,
+.planner-field {
+  display: grid;
+  gap: 10px;
+}
+
+.planner-trip-picker label,
+.planner-field span,
+.planner-muted {
+  color: var(--text-soft);
+  font-size: 0.84rem;
+  font-weight: 700;
+}
+
+.planner-trip-picker strong {
+  font-size: 1rem;
+  letter-spacing: -0.03em;
+}
+
+.planner-trip-picker select,
+.planner-field input,
+.planner-field select {
+  width: 100%;
+  min-width: 0;
+  padding: 13px 14px;
+  border-radius: 16px;
+  border: 1px solid rgba(27, 31, 35, 0.08);
+  background: rgba(255, 255, 255, 0.86);
+  outline: none;
+}
+
+.planner-field input:focus,
+.planner-field select:focus,
+.planner-trip-picker select:focus {
+  border-color: rgba(37, 99, 235, 0.35);
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.08);
+}
+
+.planner-editor-card {
+  padding: 22px;
+  border-radius: 30px;
+  background: rgba(255, 255, 255, 0.74);
+  border: 1px solid rgba(27, 31, 35, 0.06);
+  box-shadow: var(--shadow-md);
+  backdrop-filter: blur(18px);
+}
+
+.planner-editor-card--sticky {
+  position: sticky;
+  top: 98px;
+  z-index: 2;
+}
+
+.planner-form--two-column {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.planner-section-title,
+.planner-inline-actions,
+.timeline-stop__actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.planner-section-title {
+  justify-content: space-between;
+  margin-bottom: 16px;
+}
+
+.planner-section-title h2 {
+  margin: 0;
+  font-size: 1.02rem;
+  letter-spacing: -0.03em;
+}
+
+.planner-inline-actions {
+  justify-content: flex-end;
+  flex-wrap: wrap;
+}
+
+.planner-checkbox {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 14px;
+  color: var(--text-soft);
+  font-size: 0.88rem;
+}
+
+.planner-empty {
+  display: grid;
+  gap: 8px;
+  padding: 16px;
+  border-radius: 20px;
+  background: rgba(248, 250, 252, 0.86);
+  border: 1px dashed rgba(148, 163, 184, 0.35);
+}
+
+.planner-empty strong {
+  font-size: 0.95rem;
 }
 
 .timeline-stop {
@@ -623,6 +756,11 @@ button {
   border: 1px solid rgba(27, 31, 35, 0.06);
 }
 
+.timeline-stop__card.is-editing {
+  border-color: rgba(37, 99, 235, 0.32);
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.08);
+}
+
 .timeline-stop__header,
 .timeline-stop__details,
 .route-card__meta,
@@ -644,6 +782,27 @@ button {
   font-size: 0.82rem;
 }
 
+.timeline-stop__actions {
+  margin-top: 14px;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+}
+
+.timeline-stop__actions button {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 12px;
+  border-radius: 999px;
+  color: var(--text-soft);
+  background: rgba(248, 250, 252, 0.94);
+  border: 1px solid rgba(27, 31, 35, 0.06);
+}
+
+.timeline-stop__actions button.is-danger {
+  color: #b42318;
+}
+
 .timeline-stop__move {
   display: flex;
   align-items: center;
@@ -663,6 +822,25 @@ button {
     radial-gradient(circle at 20% 15%, rgba(96, 165, 250, 0.22), transparent 25%),
     radial-gradient(circle at 78% 78%, rgba(251, 146, 60, 0.22), transparent 28%),
     linear-gradient(180deg, rgba(248, 250, 252, 0.95), rgba(239, 246, 255, 0.85));
+}
+
+.planner-canvas__empty {
+  position: absolute;
+  inset: 50% auto auto 50%;
+  z-index: 1;
+  width: min(420px, calc(100% - 48px));
+  padding: 22px;
+  border-radius: 24px;
+  text-align: center;
+  background: rgba(255, 255, 255, 0.9);
+  border: 1px solid rgba(27, 31, 35, 0.06);
+  box-shadow: var(--shadow-md);
+  transform: translate(-50%, -50%);
+}
+
+.planner-canvas__empty strong {
+  display: block;
+  margin-bottom: 10px;
 }
 
 .planner-canvas__pattern {
@@ -1123,6 +1301,8 @@ button {
   .hero-panel,
   .content-grid,
   .planner-layout,
+  .setup-builder__grid,
+  .planner-form--two-column,
   .login-layout,
   .quick-action-grid,
   .hero-panel__metrics,
