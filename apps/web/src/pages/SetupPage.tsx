@@ -1,34 +1,56 @@
-import { useMemo, useState } from "react";
-import { ArrowRight, Plus, Sparkles, Trash2 } from "lucide-react";
-import type { PlannerStop } from "@travel/shared";
-import { useNavigate } from "react-router-dom";
+import { useEffect, useMemo, useState } from "react";
+import { ArrowRight, MapPin, Plus, Search } from "lucide-react";
+import type { PlannerStop, TravelRegion } from "@travel/shared";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { PageHeader } from "@/components/PageHeader";
+import { JourneyAnchorCard } from "@/components/planner/JourneyAnchorCard";
 import { TimelineStopCard } from "@/components/planner/TimelineStopCard";
-import { createTrip, createTripStop } from "@/lib/tripsApi";
+import {
+  fetchPlaceDetailsByRegion,
+  fetchPlaceSuggestionsByRegion,
+  type PlaceSuggestion,
+} from "@/lib/mapProvider";
+import { getMapProvider, getTravelRegionLabel, travelRegionOptions } from "@/lib/travelRegion";
+import {
+  createTrip,
+  createTripStop,
+  deleteTripStop,
+  fetchTripDetail,
+  optimizeTrip,
+  type TripLocationPoint,
+  updateTrip,
+} from "@/lib/tripsApi";
 
 type TripFormState = {
   title: string;
-  destination: string;
-  startDate: string;
   days: number;
   lunchTime: string;
   dinnerTime: string;
-  tags: string;
+  transportType: string;
+  travelRegion: TravelRegion;
+  startPoint: TripLocationPoint | null;
+  useCustomEndPoint: boolean;
+  endPoint: TripLocationPoint | null;
 };
 
 type StopFormState = {
   name: string;
   categoryKey: "transport" | "cafe" | "activity" | "view";
+  visitTimeMode: "auto" | "manual";
   time: string;
   stayMinutes: number;
-  travelMinutes: number;
-  distanceKm: number;
-  congestion: number;
-  transportType: string;
-  stopOrder: number;
   forked: boolean;
   dayNumber: number;
+  address: string;
+  lat: number | null;
+  lng: number | null;
 };
+
+type SetupPlannerStop = PlannerStop & {
+  visitTimeMode?: "auto" | "manual";
+};
+
+type JourneyPointField = "start" | "end";
 
 const MAP_POSITIONS = [
   { x: 18, y: 52 },
@@ -45,33 +67,65 @@ const CATEGORY_LABELS = {
   cafe: "카페",
   activity: "액티비티",
   view: "뷰 포인트",
-};
+} satisfies Record<StopFormState["categoryKey"], string>;
+
+function isBroadRegionQuery(value: string) {
+  const query = value.trim();
+  if (query.length < 2) return false;
+  return new Set([
+    "서울",
+    "부산",
+    "대구",
+    "인천",
+    "광주",
+    "대전",
+    "울산",
+    "세종",
+    "경기",
+    "강원",
+    "충북",
+    "충남",
+    "전북",
+    "전남",
+    "경북",
+    "경남",
+    "제주",
+    "강남",
+    "홍대",
+    "성수동",
+  ]).has(query);
+}
+
+function shouldShowBroadRegionHint(region: TravelRegion, query: string) {
+  return getMapProvider(region) === "kakao" && isBroadRegionQuery(query);
+}
 
 function createDefaultTripForm(): TripFormState {
   return {
     title: "새 여행 일정",
-    destination: "서울",
-    startDate: new Date().toISOString().slice(0, 10),
     days: 1,
     lunchTime: "12:00",
     dinnerTime: "18:30",
-    tags: "감성, 맛집",
+    transportType: "walk",
+    travelRegion: "korea",
+    startPoint: null,
+    useCustomEndPoint: false,
+    endPoint: null,
   };
 }
 
-function createDefaultStopForm(dayNumber = 1, stopOrder = 1): StopFormState {
+function createDefaultStopForm(dayNumber = 1): StopFormState {
   return {
     name: "",
     categoryKey: "activity",
+    visitTimeMode: "auto",
     time: "10:00",
     stayMinutes: 60,
-    travelMinutes: 10,
-    distanceKm: 1.2,
-    congestion: 50,
-    transportType: "walk",
-    stopOrder,
     forked: false,
     dayNumber,
+    address: "",
+    lat: null,
+    lng: null,
   };
 }
 
@@ -79,7 +133,24 @@ function createTempId() {
   return `temp-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
 }
 
-function mapStopPreview(form: StopFormState, index: number, id = createTempId()): PlannerStop {
+function deriveTripDestination(
+  tripForm: Pick<TripFormState, "startPoint" | "endPoint" | "travelRegion">,
+  stops: SetupPlannerStop[],
+) {
+  return (
+    tripForm.startPoint?.name?.trim() ||
+    tripForm.endPoint?.name?.trim() ||
+    stops[0]?.name?.trim() ||
+    getTravelRegionLabel(tripForm.travelRegion)
+  );
+}
+
+function mapStopPreview(
+  form: StopFormState,
+  transportType: string,
+  index: number,
+  id = createTempId(),
+): SetupPlannerStop {
   const position = MAP_POSITIONS[index] ?? {
     x: 24 + (index % 4) * 14,
     y: 28 + Math.floor(index / 4) * 18,
@@ -90,56 +161,232 @@ function mapStopPreview(form: StopFormState, index: number, id = createTempId())
     name: form.name.trim(),
     category: CATEGORY_LABELS[form.categoryKey],
     categoryKey: form.categoryKey,
-    time: form.time,
-    congestion: form.congestion,
+    address: form.address,
+    lat: form.lat ?? undefined,
+    lng: form.lng ?? undefined,
+    time: form.visitTimeMode === "manual" ? form.time : "자동 배정",
+    congestion: 0,
     stayMinutes: form.stayMinutes,
-    travelMinutes: form.travelMinutes,
-    transportType: form.transportType,
-    stopOrder: form.stopOrder,
+    travelMinutes: 0,
+    transportType,
+    stopOrder: index + 1,
     dayNumber: form.dayNumber,
-    distanceKm: form.distanceKm,
+    distanceKm: 0,
     forked: form.forked,
+    visitTimeMode: form.visitTimeMode,
     position,
   };
 }
 
-function mapFormFromStop(stop: PlannerStop): StopFormState {
+function mapFormFromStop(stop: SetupPlannerStop): StopFormState {
   return {
     name: stop.name,
     categoryKey: stop.categoryKey,
-    time: stop.time,
+    visitTimeMode: stop.visitTimeMode ?? "auto",
+    time: stop.time && stop.time !== "자동 배정" ? stop.time : "10:00",
     stayMinutes: stop.stayMinutes,
-    travelMinutes: stop.travelMinutes,
-    distanceKm: stop.distanceKm ?? 0,
-    congestion: stop.congestion,
-    transportType: stop.transportType ?? "walk",
-    stopOrder: stop.stopOrder ?? 1,
     forked: Boolean(stop.forked),
     dayNumber: stop.dayNumber ?? 1,
+    address: stop.address ?? "",
+    lat: stop.lat ?? null,
+    lng: stop.lng ?? null,
   };
+}
+
+function getPlaceSearchPlaceholder(region: TravelRegion) {
+  if (region === "korea") return "장소를 검색해보세요";
+  if (region === "japan") return "예: 시부야 스카이, 도쿄역";
+  if (region === "europe") return "예: Eiffel Tower, Louvre Museum";
+  if (region === "america") return "예: Times Square, LAX";
+  return "장소를 검색해보세요";
 }
 
 export function SetupPage() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const editingTripId = searchParams.get("tripId");
   const [tripForm, setTripForm] = useState<TripFormState>(createDefaultTripForm());
   const [stopForm, setStopForm] = useState<StopFormState>(createDefaultStopForm());
-  const [plannedStops, setPlannedStops] = useState<PlannerStop[]>([]);
+  const [plannedStops, setPlannedStops] = useState<SetupPlannerStop[]>([]);
+  const [originalStopIds, setOriginalStopIds] = useState<string[]>([]);
   const [editingStopId, setEditingStopId] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  const [loadingTrip, setLoadingTrip] = useState(false);
+  const [searchingPlaces, setSearchingPlaces] = useState(false);
+  const [suggestions, setSuggestions] = useState<PlaceSuggestion[]>([]);
+  const [journeyPointField, setJourneyPointField] = useState<JourneyPointField | null>(null);
+  const [journeyPointQuery, setJourneyPointQuery] = useState({ start: "", end: "" });
+  const [journeyPointSuggestions, setJourneyPointSuggestions] = useState<PlaceSuggestion[]>([]);
+  const [searchingJourneyPoints, setSearchingJourneyPoints] = useState(false);
   const [error, setError] = useState("");
+  const isEditMode = Boolean(editingTripId);
 
   const sortedStops = useMemo(
     () =>
       [...plannedStops].sort((a, b) => {
         const dayDiff = (a.dayNumber ?? 1) - (b.dayNumber ?? 1);
-        if (dayDiff !== 0) {
-          return dayDiff;
-        }
-
+        if (dayDiff !== 0) return dayDiff;
         return (a.stopOrder ?? 1) - (b.stopOrder ?? 1);
       }),
     [plannedStops],
   );
+  const previewStopCount = sortedStops.length + (tripForm.startPoint ? 1 : 0);
+  const activeProvider = getMapProvider(tripForm.travelRegion);
+
+  useEffect(() => {
+    let isMounted = true;
+
+    async function loadTripForEdit() {
+      if (!editingTripId) {
+        setTripForm(createDefaultTripForm());
+        setStopForm(createDefaultStopForm());
+        setPlannedStops([]);
+        setOriginalStopIds([]);
+        setJourneyPointQuery({ start: "", end: "" });
+        return;
+      }
+
+      setLoadingTrip(true);
+      setError("");
+
+      try {
+        const firstDay = await fetchTripDetail(editingTripId, 1);
+        const remainingDays = firstDay.days
+          .filter((day) => day.dayNumber !== 1)
+          .map((day) => fetchTripDetail(editingTripId, day.dayNumber));
+        const remainingDetails = await Promise.all(remainingDays);
+        const allDetails = [firstDay, ...remainingDetails];
+        const allStops = allDetails.flatMap((detail) => detail.stops);
+
+        if (!isMounted) return;
+
+        setTripForm({
+          title: firstDay.tripConfig.title,
+          days: firstDay.tripConfig.days,
+          lunchTime: firstDay.tripConfig.lunchTime,
+          dinnerTime: firstDay.tripConfig.dinnerTime,
+          transportType: allStops[0]?.transportType ?? "walk",
+          travelRegion: firstDay.tripConfig.travelRegion ?? "korea",
+          startPoint: firstDay.tripConfig.startPoint,
+          useCustomEndPoint: Boolean(firstDay.tripConfig.endPoint),
+          endPoint: firstDay.tripConfig.endPoint,
+        });
+        setPlannedStops(allStops.map((stop) => ({ ...stop, visitTimeMode: "auto" })));
+        setOriginalStopIds(allStops.map((stop) => stop.id));
+        setStopForm(createDefaultStopForm());
+        setJourneyPointQuery({
+          start: firstDay.tripConfig.startPoint?.name ?? "",
+          end: firstDay.tripConfig.endPoint?.name ?? "",
+        });
+      } catch (loadError) {
+        if (isMounted) {
+          setError(loadError instanceof Error ? loadError.message : "일정을 불러오지 못했습니다.");
+        }
+      } finally {
+        if (isMounted) setLoadingTrip(false);
+      }
+    }
+
+    void loadTripForEdit();
+    return () => {
+      isMounted = false;
+    };
+  }, [editingTripId]);
+
+  useEffect(() => {
+    let isMounted = true;
+    const query = stopForm.name.trim();
+
+    if (query.length < 2) {
+      setSuggestions([]);
+      setSearchingPlaces(false);
+      return;
+    }
+
+    if (shouldShowBroadRegionHint(tripForm.travelRegion, query)) {
+      setSuggestions([]);
+      setSearchingPlaces(false);
+      return;
+    }
+
+    const timeoutId = window.setTimeout(async () => {
+      setSearchingPlaces(true);
+
+      try {
+        const nextSuggestions = await fetchPlaceSuggestionsByRegion(
+          tripForm.travelRegion,
+          query,
+          { center: tripForm.startPoint },
+        );
+
+        if (isMounted) {
+          setSuggestions(nextSuggestions.slice(0, 8));
+          setError("");
+        }
+      } catch (searchError) {
+        if (isMounted) {
+          setSuggestions([]);
+          setError(searchError instanceof Error ? searchError.message : "장소 검색에 실패했습니다.");
+        }
+      } finally {
+        if (isMounted) {
+          setSearchingPlaces(false);
+        }
+      }
+    }, 250);
+
+    return () => {
+      isMounted = false;
+      window.clearTimeout(timeoutId);
+    };
+  }, [stopForm.name, tripForm.startPoint, tripForm.travelRegion]);
+
+  useEffect(() => {
+    let isMounted = true;
+
+    if (!journeyPointField) {
+      setJourneyPointSuggestions([]);
+      setSearchingJourneyPoints(false);
+      return;
+    }
+
+    const query = journeyPointQuery[journeyPointField].trim();
+
+    if (query.length < 2) {
+      setJourneyPointSuggestions([]);
+      setSearchingJourneyPoints(false);
+      return;
+    }
+
+    const timeoutId = window.setTimeout(async () => {
+      setSearchingJourneyPoints(true);
+
+      try {
+        const nextSuggestions = await fetchPlaceSuggestionsByRegion(tripForm.travelRegion, query);
+
+        if (isMounted) {
+          setJourneyPointSuggestions(nextSuggestions.slice(0, 6));
+          setError("");
+        }
+      } catch (searchError) {
+        if (isMounted) {
+          setJourneyPointSuggestions([]);
+          setError(
+            searchError instanceof Error ? searchError.message : "출발지 검색에 실패했습니다.",
+          );
+        }
+      } finally {
+        if (isMounted) {
+          setSearchingJourneyPoints(false);
+        }
+      }
+    }, 250);
+
+    return () => {
+      isMounted = false;
+      window.clearTimeout(timeoutId);
+    };
+  }, [journeyPointField, journeyPointQuery, tripForm.travelRegion]);
 
   function handleAddOrUpdateStop() {
     if (!stopForm.name.trim()) {
@@ -152,26 +399,84 @@ export function SetupPage() {
     if (editingStopId) {
       setPlannedStops((current) =>
         current.map((stop, index) =>
-          stop.id === editingStopId ? mapStopPreview(stopForm, index, editingStopId) : stop,
+          stop.id === editingStopId
+            ? mapStopPreview(stopForm, tripForm.transportType, index, editingStopId)
+            : stop,
         ),
       );
       setEditingStopId(null);
     } else {
-      setPlannedStops((current) => [...current, mapStopPreview(stopForm, current.length)]);
+      setPlannedStops((current) => [
+        ...current,
+        mapStopPreview(stopForm, tripForm.transportType, current.length),
+      ]);
     }
 
-    const nextOrder = plannedStops.filter((stop) => (stop.dayNumber ?? 1) === stopForm.dayNumber).length + 1;
-    setStopForm(createDefaultStopForm(stopForm.dayNumber, nextOrder));
+    setStopForm(createDefaultStopForm(stopForm.dayNumber));
+    setSuggestions([]);
   }
 
-  function handleEditStop(stop: PlannerStop) {
+  async function handleSelectSuggestion(suggestion: PlaceSuggestion) {
+    try {
+      const details = await fetchPlaceDetailsByRegion(tripForm.travelRegion, suggestion.placeId);
+
+      setStopForm((current) => ({
+        ...current,
+        name: details.name || suggestion.title,
+        address: details.address,
+        lat: details.lat,
+        lng: details.lng,
+      }));
+      setSuggestions([]);
+      setError("");
+    } catch (selectError) {
+      setError(selectError instanceof Error ? selectError.message : "장소를 불러오지 못했습니다.");
+    }
+  }
+
+  function handleJourneyPointInput(field: JourneyPointField, value: string) {
+    setError("");
+    setJourneyPointField(field);
+    setJourneyPointQuery((current) => ({ ...current, [field]: value }));
+    setTripForm((current) =>
+      field === "start" ? { ...current, startPoint: null } : { ...current, endPoint: null },
+    );
+  }
+
+  async function handleSelectJourneyPoint(field: JourneyPointField, suggestion: PlaceSuggestion) {
+    try {
+      const details = await fetchPlaceDetailsByRegion(tripForm.travelRegion, suggestion.placeId);
+      const nextPoint = {
+        name: details.name || suggestion.title,
+        address: details.address,
+        lat: details.lat,
+        lng: details.lng,
+      };
+
+      setTripForm((current) =>
+        field === "start"
+          ? { ...current, startPoint: nextPoint }
+          : { ...current, endPoint: nextPoint },
+      );
+      setJourneyPointQuery((current) => ({ ...current, [field]: nextPoint.name }));
+      setJourneyPointField(null);
+      setJourneyPointSuggestions([]);
+      setError("");
+    } catch (selectError) {
+      setError(selectError instanceof Error ? selectError.message : "출발지/종료지를 불러오지 못했습니다.");
+    }
+  }
+
+  function handleEditStop(stop: SetupPlannerStop) {
     setEditingStopId(stop.id);
     setStopForm(mapFormFromStop(stop));
+    setSuggestions([]);
     setError("");
   }
 
-  function handleDeleteStop(stop: PlannerStop) {
+  function handleDeleteStop(stop: SetupPlannerStop) {
     setPlannedStops((current) => current.filter((item) => item.id !== stop.id));
+
     if (editingStopId === stop.id) {
       setEditingStopId(null);
       setStopForm(createDefaultStopForm(stop.dayNumber ?? 1));
@@ -180,9 +485,8 @@ export function SetupPage() {
 
   function handleResetStopForm() {
     setEditingStopId(null);
-    const nextOrder =
-      plannedStops.filter((stop) => (stop.dayNumber ?? 1) === stopForm.dayNumber).length + 1;
-    setStopForm(createDefaultStopForm(stopForm.dayNumber, nextOrder));
+    setStopForm(createDefaultStopForm(stopForm.dayNumber));
+    setSuggestions([]);
   }
 
   async function handleOptimize() {
@@ -195,44 +499,66 @@ export function SetupPage() {
     setError("");
 
     try {
-      const created = await createTrip({
-        title: tripForm.title.trim(),
-        destination: tripForm.destination.trim(),
-        startDate: tripForm.startDate,
-        days: tripForm.days,
-        lunchTime: tripForm.lunchTime,
-        dinnerTime: tripForm.dinnerTime,
-        tags: tripForm.tags
-          .split(",")
-          .map((tag) => tag.trim())
-          .filter(Boolean),
-      });
+      let tripId = editingTripId;
+      const destination = deriveTripDestination(tripForm, sortedStops);
 
-      const tripId = created.trip.trip.id;
+      if (tripId) {
+        await updateTrip(tripId, {
+          title: tripForm.title.trim(),
+          destination,
+          startDate: new Date().toISOString().slice(0, 10),
+          days: tripForm.days,
+          lunchTime: tripForm.lunchTime,
+          dinnerTime: tripForm.dinnerTime,
+          tags: [],
+          travelRegion: tripForm.travelRegion,
+          startPoint: tripForm.startPoint,
+          endPoint: tripForm.useCustomEndPoint ? tripForm.endPoint : null,
+        });
 
-      for (const stop of sortedStops) {
+        for (const stopId of originalStopIds) {
+          await deleteTripStop(tripId, stopId, 1);
+        }
+      } else {
+        const created = await createTrip({
+          title: tripForm.title.trim(),
+          destination,
+          startDate: new Date().toISOString().slice(0, 10),
+          days: tripForm.days,
+          lunchTime: tripForm.lunchTime,
+          dinnerTime: tripForm.dinnerTime,
+          tags: [],
+          travelRegion: tripForm.travelRegion,
+          startPoint: tripForm.startPoint,
+          endPoint: tripForm.useCustomEndPoint ? tripForm.endPoint : null,
+        });
+
+        tripId = created.trip.trip.id;
+      }
+
+      for (const [index, stop] of sortedStops.entries()) {
         await createTripStop(tripId, {
           dayNumber: stop.dayNumber ?? 1,
           name: stop.name,
           categoryKey: stop.categoryKey,
-          time: stop.time,
+          time: stop.visitTimeMode === "manual" ? stop.time : "10:00",
           stayMinutes: stop.stayMinutes,
-          travelMinutes: stop.travelMinutes,
-          distanceKm: stop.distanceKm ?? 0,
-          congestion: stop.congestion,
-          transportType: stop.transportType ?? "walk",
-          stopOrder: stop.stopOrder ?? 1,
+          travelMinutes: 0,
+          distanceKm: 0,
+          congestion: 0,
+          transportType: tripForm.transportType,
+          stopOrder: index + 1,
           forked: Boolean(stop.forked),
+          address: stop.address ?? "",
+          lat: stop.lat ?? null,
+          lng: stop.lng ?? null,
         });
       }
 
+      await optimizeTrip(tripId, 1);
       navigate(`/planner?tripId=${tripId}&day=1`);
     } catch (optimizeError) {
-      setError(
-        optimizeError instanceof Error
-          ? optimizeError.message
-          : "일정 생성 중 오류가 발생했습니다.",
-      );
+      setError(optimizeError instanceof Error ? optimizeError.message : "일정을 저장하지 못했습니다.");
     } finally {
       setSubmitting(false);
     }
@@ -241,14 +567,12 @@ export function SetupPage() {
   return (
     <div className="single-column-page">
       <PageHeader
-        eyebrow="일정 설정"
-        title="장소와 조건을 먼저 조립하고, 최적화된 결과는 다음 단계에서 확인합니다."
-        description="여행지, 식사 시간, 일차별 방문 장소, 이동 수단, 체류 시간을 입력한 뒤 최적화 버튼을 누르면 결과 페이지에서 정리된 동선을 한눈에 볼 수 있습니다."
-        actions={
-          <button className="button button--primary" onClick={handleOptimize} disabled={submitting}>
-            <Sparkles size={16} />
-            최적화 시작
-          </button>
+        eyebrow={isEditMode ? "일정 수정" : "일정 설정"}
+        title={isEditMode ? "저장한 일정 수정하기" : "새 일정 만들기"}
+        description={
+          isEditMode
+            ? "불러온 일정의 장소와 조건을 조정한 뒤 다시 최적화를 진행합니다."
+            : "권역과 이동 조건을 먼저 정하고, 가고 싶은 장소를 순서 없이 담아보세요."
         }
       />
 
@@ -260,6 +584,38 @@ export function SetupPage() {
             <h2>기본 설정</h2>
           </div>
 
+          <div className="planner-field">
+            <span>여행 권역</span>
+            <div className="travel-region-grid">
+              {travelRegionOptions.map((option) => (
+                <button
+                  key={option.value}
+                  type="button"
+                  className={
+                    tripForm.travelRegion === option.value
+                      ? "travel-region-card is-active"
+                      : "travel-region-card"
+                  }
+                    onClick={() => {
+                      setTripForm((current) => ({ ...current, travelRegion: option.value }));
+                      setSuggestions([]);
+                      setJourneyPointSuggestions([]);
+                      setError("");
+                    }}
+                >
+                  <strong>{option.label}</strong>
+                  <p>{option.description}</p>
+                </button>
+              ))}
+            </div>
+            <p className="planner-field__hint">
+              현재 {getTravelRegionLabel(tripForm.travelRegion)} 권역으로 검색과 지도를 연결합니다.
+              {activeProvider === "kakao"
+                ? " 국내에서는 카카오 지도를 사용합니다."
+                : " 해외 권역에서는 Google 지도를 사용합니다."}
+            </p>
+          </div>
+
           <div className="planner-form planner-form--two-column">
             <label className="planner-field">
               <span>일정 제목</span>
@@ -267,27 +623,6 @@ export function SetupPage() {
                 value={tripForm.title}
                 onChange={(event) =>
                   setTripForm((current) => ({ ...current, title: event.target.value }))
-                }
-              />
-            </label>
-
-            <label className="planner-field">
-              <span>여행지</span>
-              <input
-                value={tripForm.destination}
-                onChange={(event) =>
-                  setTripForm((current) => ({ ...current, destination: event.target.value }))
-                }
-              />
-            </label>
-
-            <label className="planner-field">
-              <span>출발일</span>
-              <input
-                type="date"
-                value={tripForm.startDate}
-                onChange={(event) =>
-                  setTripForm((current) => ({ ...current, startDate: event.target.value }))
                 }
               />
             </label>
@@ -329,18 +664,157 @@ export function SetupPage() {
                 }
               />
             </label>
+
+            <label className="planner-field">
+              <span>기본 이동 수단</span>
+              <select
+                value={tripForm.transportType}
+                onChange={(event) =>
+                  setTripForm((current) => ({ ...current, transportType: event.target.value }))
+                }
+              >
+                <option value="walk">도보</option>
+                <option value="subway">지하철</option>
+                <option value="bus">버스</option>
+                <option value="car">차량</option>
+                <option value="taxi">택시</option>
+              </select>
+            </label>
           </div>
 
-          <label className="planner-field">
-            <span>태그</span>
-            <input
-              value={tripForm.tags}
-              placeholder="감성, 맛집, 도보 여행"
-              onChange={(event) =>
-                setTripForm((current) => ({ ...current, tags: event.target.value }))
-              }
-            />
-          </label>
+          <div className="journey-point-card">
+            <div className="journey-point-card__header">
+              <div>
+                <strong>출발지 설정</strong>
+                <p>최적화가 어디에서 시작되는지 먼저 정합니다.</p>
+              </div>
+            </div>
+
+            <label className="planner-field">
+              <span>출발지</span>
+              <div className="place-search-card__input">
+                <Search size={18} />
+                <input
+                  value={journeyPointQuery.start}
+                  placeholder={`${getTravelRegionLabel(tripForm.travelRegion)}에서 출발지를 검색해보세요`}
+                  onFocus={() => setJourneyPointField("start")}
+                  onChange={(event) => handleJourneyPointInput("start", event.target.value)}
+                />
+              </div>
+            </label>
+
+            {journeyPointField === "start" ? (
+              <div className="journey-point-card__suggestions">
+                {searchingJourneyPoints ? (
+                  <div className="place-suggestion-row__empty">출발지를 찾는 중입니다...</div>
+                ) : journeyPointSuggestions.length > 0 ? (
+                  <div className="place-suggestion-row">
+                    {journeyPointSuggestions.map((suggestion) => (
+                      <button
+                        key={suggestion.placeId}
+                        type="button"
+                        className="place-suggestion-card place-suggestion-card--compact"
+                        onClick={() => handleSelectJourneyPoint("start", suggestion)}
+                      >
+                        <span className="place-suggestion-card__label">출발지 추천</span>
+                        <strong>{suggestion.title}</strong>
+                        <p>{suggestion.subtitle || suggestion.description}</p>
+                      </button>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="place-suggestion-row__empty">
+                    두 글자 이상 입력하면 출발지 후보가 나타납니다.
+                  </div>
+                )}
+              </div>
+            ) : null}
+
+            {tripForm.startPoint ? (
+              <div className="place-selected-card place-selected-card--compact">
+                <MapPin size={16} />
+                <div>
+                  <strong>{tripForm.startPoint.name}</strong>
+                  <p>{tripForm.startPoint.address}</p>
+                </div>
+              </div>
+            ) : null}
+
+            <label className="planner-checkbox">
+              <input
+                type="checkbox"
+                checked={tripForm.useCustomEndPoint}
+                onChange={(event) => {
+                  const checked = event.target.checked;
+
+                  setTripForm((current) => ({
+                    ...current,
+                    useCustomEndPoint: checked,
+                    endPoint: checked ? current.endPoint : null,
+                  }));
+
+                  if (!checked) {
+                    setJourneyPointQuery((current) => ({ ...current, end: "" }));
+                    setJourneyPointSuggestions([]);
+                    setJourneyPointField((current) => (current === "end" ? null : current));
+                  }
+                }}
+              />
+              <span>종료지는 따로 설정할게요</span>
+            </label>
+
+            {tripForm.useCustomEndPoint ? (
+              <div className="journey-point-card__optional">
+                <label className="planner-field">
+                  <span>종료지</span>
+                  <div className="place-search-card__input">
+                    <Search size={18} />
+                    <input
+                      value={journeyPointQuery.end}
+                      placeholder={`${getTravelRegionLabel(tripForm.travelRegion)}에서 종료지를 검색해보세요`}
+                      onFocus={() => setJourneyPointField("end")}
+                      onChange={(event) => handleJourneyPointInput("end", event.target.value)}
+                    />
+                  </div>
+                </label>
+
+                {journeyPointField === "end" ? (
+                  <div className="journey-point-card__suggestions">
+                    {searchingJourneyPoints ? (
+                      <div className="place-suggestion-row__empty">종료지를 찾는 중입니다...</div>
+                    ) : journeyPointSuggestions.length > 0 ? (
+                      <div className="place-suggestion-row">
+                        {journeyPointSuggestions.map((suggestion) => (
+                          <button
+                            key={suggestion.placeId}
+                            type="button"
+                            className="place-suggestion-card place-suggestion-card--compact"
+                            onClick={() => handleSelectJourneyPoint("end", suggestion)}
+                          >
+                            <span className="place-suggestion-card__label">종료지 추천</span>
+                            <strong>{suggestion.title}</strong>
+                            <p>{suggestion.subtitle || suggestion.description}</p>
+                          </button>
+                        ))}
+                      </div>
+                    ) : (
+                      <div className="place-suggestion-row__empty">종료지를 따로 두고 싶다면 장소를 검색해보세요.</div>
+                    )}
+                  </div>
+                ) : null}
+
+                {tripForm.endPoint ? (
+                  <div className="place-selected-card place-selected-card--compact">
+                    <MapPin size={16} />
+                    <div>
+                      <strong>{tripForm.endPoint.name}</strong>
+                      <p>{tripForm.endPoint.address}</p>
+                    </div>
+                  </div>
+                ) : null}
+              </div>
+            ) : null}
+          </div>
         </section>
 
         <div className="setup-builder__grid">
@@ -360,18 +834,67 @@ export function SetupPage() {
               </div>
             </div>
 
-            <div className="planner-form planner-form--two-column">
-              <label className="planner-field">
-                <span>장소명</span>
-                <input
-                  value={stopForm.name}
-                  placeholder="예: 서울숲"
-                  onChange={(event) =>
-                    setStopForm((current) => ({ ...current, name: event.target.value }))
-                  }
-                />
+            <div className="place-search-card">
+              <label className="planner-field place-search-card__field">
+                <span>장소 검색</span>
+                <div className="place-search-card__input">
+                  <Search size={18} />
+                  <input
+                    value={stopForm.name}
+                    placeholder={getPlaceSearchPlaceholder(tripForm.travelRegion)}
+                    onChange={(event) =>
+                      {
+                        setError("");
+                        setStopForm((current) => ({
+                          ...current,
+                          name: event.target.value,
+                          address: "",
+                          lat: null,
+                          lng: null,
+                        }));
+                      }
+                    }
+                  />
+                </div>
               </label>
 
+              <div className="place-suggestion-row">
+                {searchingPlaces ? (
+                  <div className="place-suggestion-row__empty">장소를 찾는 중입니다...</div>
+                ) : suggestions.length > 0 ? (
+                  suggestions.map((suggestion) => (
+                    <button
+                      key={suggestion.placeId}
+                      type="button"
+                      className="place-suggestion-card"
+                      onClick={() => handleSelectSuggestion(suggestion)}
+                    >
+                      <span className="place-suggestion-card__label">추천 장소</span>
+                      <strong>{suggestion.title}</strong>
+                      <p>{suggestion.subtitle || suggestion.description}</p>
+                    </button>
+                  ))
+                ) : shouldShowBroadRegionHint(tripForm.travelRegion, stopForm.name) ? (
+                  <div className="place-suggestion-row__empty">
+                    지역명만으로는 결과가 너무 넓어요. `서울숲`, `성수 카페`, `강남 맛집`처럼 더 구체적으로 입력해보세요.
+                  </div>
+                ) : (
+                  <div className="place-suggestion-row__empty">두 글자 이상 입력하면 연관 장소가 카드로 나타납니다.</div>
+                )}
+              </div>
+
+              {stopForm.address ? (
+                <div className="place-selected-card">
+                  <MapPin size={16} />
+                  <div>
+                    <strong>{stopForm.name}</strong>
+                    <p>{stopForm.address}</p>
+                  </div>
+                </div>
+              ) : null}
+            </div>
+
+            <div className="planner-form planner-form--two-column">
               <label className="planner-field">
                 <span>카테고리</span>
                 <select
@@ -395,10 +918,7 @@ export function SetupPage() {
                 <select
                   value={stopForm.dayNumber}
                   onChange={(event) =>
-                    setStopForm((current) => ({
-                      ...current,
-                      dayNumber: Number(event.target.value),
-                    }))
+                    setStopForm((current) => ({ ...current, dayNumber: Number(event.target.value) }))
                   }
                 >
                   {Array.from({ length: tripForm.days }, (_, index) => index + 1).map((day) => (
@@ -411,24 +931,39 @@ export function SetupPage() {
 
               <label className="planner-field">
                 <span>방문 시간</span>
-                <input
-                  type="time"
-                  value={stopForm.time}
-                  onChange={(event) =>
-                    setStopForm((current) => ({ ...current, time: event.target.value }))
-                  }
-                />
-              </label>
-
-              <label className="planner-field">
-                <span>이동 수단</span>
-                <input
-                  value={stopForm.transportType}
-                  placeholder="walk / subway / bus"
-                  onChange={(event) =>
-                    setStopForm((current) => ({ ...current, transportType: event.target.value }))
-                  }
-                />
+                <div className="visit-time-mode">
+                  <button
+                    type="button"
+                    className={
+                      stopForm.visitTimeMode === "auto"
+                        ? "visit-time-mode__button is-active"
+                        : "visit-time-mode__button"
+                    }
+                    onClick={() => setStopForm((current) => ({ ...current, visitTimeMode: "auto" }))}
+                  >
+                    자동
+                  </button>
+                  <button
+                    type="button"
+                    className={
+                      stopForm.visitTimeMode === "manual"
+                        ? "visit-time-mode__button is-active"
+                        : "visit-time-mode__button"
+                    }
+                    onClick={() => setStopForm((current) => ({ ...current, visitTimeMode: "manual" }))}
+                  >
+                    직접 설정
+                  </button>
+                </div>
+                {stopForm.visitTimeMode === "manual" ? (
+                  <input
+                    type="time"
+                    value={stopForm.time}
+                    onChange={(event) => setStopForm((current) => ({ ...current, time: event.target.value }))}
+                  />
+                ) : (
+                  <p className="planner-field__hint">방문 시간은 최적화 결과에서 자동으로 배치됩니다.</p>
+                )}
               </label>
 
               <label className="planner-field">
@@ -445,77 +980,13 @@ export function SetupPage() {
                   }
                 />
               </label>
-
-              <label className="planner-field">
-                <span>이전 장소에서 이동 시간(분)</span>
-                <input
-                  type="number"
-                  min={0}
-                  value={stopForm.travelMinutes}
-                  onChange={(event) =>
-                    setStopForm((current) => ({
-                      ...current,
-                      travelMinutes: Math.max(0, Number(event.target.value) || 0),
-                    }))
-                  }
-                />
-              </label>
-
-              <label className="planner-field">
-                <span>이동 거리(km)</span>
-                <input
-                  type="number"
-                  min={0}
-                  step="0.1"
-                  value={stopForm.distanceKm}
-                  onChange={(event) =>
-                    setStopForm((current) => ({
-                      ...current,
-                      distanceKm: Math.max(0, Number(event.target.value) || 0),
-                    }))
-                  }
-                />
-              </label>
-
-              <label className="planner-field">
-                <span>혼잡도(0~100)</span>
-                <input
-                  type="number"
-                  min={0}
-                  max={100}
-                  value={stopForm.congestion}
-                  onChange={(event) =>
-                    setStopForm((current) => ({
-                      ...current,
-                      congestion: Math.max(0, Math.min(100, Number(event.target.value) || 0)),
-                    }))
-                  }
-                />
-              </label>
-
-              <label className="planner-field">
-                <span>일차 내 순서</span>
-                <input
-                  type="number"
-                  min={1}
-                  value={stopForm.stopOrder}
-                  onChange={(event) =>
-                    setStopForm((current) => ({
-                      ...current,
-                      stopOrder: Math.max(1, Number(event.target.value) || 1),
-                    }))
-                  }
-                />
-              </label>
             </div>
 
             <label className="planner-checkbox">
               <input
                 type="checkbox"
                 checked={stopForm.forked}
-                onChange={(event) =>
-                  setStopForm((current) => ({ ...current, forked: event.target.checked }))
-                }
+                onChange={(event) => setStopForm((current) => ({ ...current, forked: event.target.checked }))}
               />
               <span>포크한 장소로 표시</span>
             </label>
@@ -523,32 +994,41 @@ export function SetupPage() {
 
           <section className="planner-editor-card">
             <div className="planner-section-title">
-              <h2>이번 일정에 담은 장소</h2>
-              <span className="planner-muted">{sortedStops.length}개 등록</span>
+              <h2>이번 일정에 담긴 장소</h2>
+              <span className="planner-muted">{loadingTrip ? "불러오는 중" : `${previewStopCount}개 등록`}</span>
             </div>
 
-            {sortedStops.length === 0 ? (
+            {previewStopCount === 0 ? (
               <div className="planner-empty">
-                <strong>아직 추가된 장소가 없습니다.</strong>
-                <p>장소, 이동 수단, 체류 시간까지 먼저 설정한 뒤 최적화를 시작해보세요.</p>
+                <strong>아직 추가한 장소가 없습니다.</strong>
+                <p>장소와 체류 시간만 먼저 정한 뒤 최적화를 시작해보세요.</p>
               </div>
             ) : (
-              sortedStops.map((stop, index) => (
-                <TimelineStopCard
-                  key={stop.id}
-                  stop={stop}
-                  index={index}
-                  last={index === sortedStops.length - 1}
-                  editing={editingStopId === stop.id}
-                  onEdit={handleEditStop}
-                  onDelete={handleDeleteStop}
-                />
-              ))
+              <>
+                {tripForm.startPoint ? (
+                  <JourneyAnchorCard
+                    title={tripForm.startPoint.name}
+                    address={tripForm.startPoint.address}
+                    showConnector={sortedStops.length > 0}
+                  />
+                ) : null}
+                {sortedStops.map((stop, index) => (
+                  <TimelineStopCard
+                    key={stop.id}
+                    stop={stop}
+                    index={index + (tripForm.startPoint ? 1 : 0)}
+                    last={index === sortedStops.length - 1}
+                    editing={editingStopId === stop.id}
+                    onEdit={handleEditStop}
+                    onDelete={handleDeleteStop}
+                  />
+                ))}
+              </>
             )}
 
             <div className="setup-builder__footer">
-              <button className="button button--primary" onClick={handleOptimize} disabled={submitting}>
-                최적화 결과 보기
+              <button className="button button--primary" onClick={handleOptimize} disabled={submitting || loadingTrip}>
+                최적화 시작
                 <ArrowRight size={16} />
               </button>
             </div>

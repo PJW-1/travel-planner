@@ -258,7 +258,7 @@ export async function getAiLabOverview() {
   };
 }
 
-export async function getMySummary() {
+export async function getMySummary(userId) {
   const db = getDbPool();
   const [rows] = await db.execute(
     `
@@ -269,9 +269,10 @@ export async function getMySummary() {
         theme_json,
         cover_image_url
       FROM trips
-      WHERE featured_saved = TRUE
-      ORDER BY id ASC
+      WHERE user_id = ? AND featured_saved = TRUE
+      ORDER BY updated_at DESC, id DESC
     `,
+    [userId],
   );
 
   return {

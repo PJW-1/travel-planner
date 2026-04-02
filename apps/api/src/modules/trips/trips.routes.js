@@ -1,5 +1,6 @@
 import { Router } from "express";
 import { requireAuth } from "../auth/auth.middleware.js";
+import { optimizeTripRoute } from "./trips.optimizer.js";
 import {
   createTrip,
   createTripStop,
@@ -7,6 +8,7 @@ import {
   deleteTripStop,
   getTripDetail,
   listUserTrips,
+  setTripSaved,
   updateTrip,
   updateTripStop,
 } from "./trips.repository.js";
@@ -19,6 +21,53 @@ tripsRouter.get("/", async (req, res, next) => {
   try {
     const items = await listUserTrips(req.auth.userId);
     res.status(200).json({ items });
+  } catch (error) {
+    next(error);
+  }
+});
+
+tripsRouter.post("/:tripId/optimize", async (req, res, next) => {
+  try {
+    const optimized = await optimizeTripRoute(req.auth.userId, req.params.tripId);
+
+    if (!optimized) {
+      res.status(404).json({ message: "최적화할 일정을 찾을 수 없습니다." });
+      return;
+    }
+
+    const detail = await getTripDetail(req.auth.userId, req.params.tripId, req.body?.selectedDayNumber);
+    res.status(200).json({
+      message: "이동 수단과 출발지를 반영해 동선을 최적화했습니다.",
+      trip: detail,
+    });
+  } catch (error) {
+    next(error);
+  }
+});
+
+tripsRouter.post("/:tripId/reorder", async (req, res, next) => {
+  try {
+    const dayNumber = Number(req.body?.dayNumber ?? 1);
+    const stopIds = Array.isArray(req.body?.stopIds)
+      ? req.body.stopIds.map((id) => String(id))
+      : [];
+
+    const optimized = await optimizeTripRoute(req.auth.userId, req.params.tripId, {
+      manualOrderByDay: {
+        [String(dayNumber)]: stopIds,
+      },
+    });
+
+    if (!optimized) {
+      res.status(404).json({ message: "재정렬할 일정을 찾을 수 없습니다." });
+      return;
+    }
+
+    const detail = await getTripDetail(req.auth.userId, req.params.tripId, dayNumber);
+    res.status(200).json({
+      message: "방문 순서를 다시 반영했습니다.",
+      trip: detail,
+    });
   } catch (error) {
     next(error);
   }
@@ -65,6 +114,25 @@ tripsRouter.patch("/:tripId", async (req, res, next) => {
     const detail = await getTripDetail(req.auth.userId, req.params.tripId, req.body?.selectedDayNumber);
     res.status(200).json({
       message: "일정 정보가 저장되었습니다.",
+      trip: detail,
+    });
+  } catch (error) {
+    next(error);
+  }
+});
+
+tripsRouter.post("/:tripId/save", async (req, res, next) => {
+  try {
+    const saved = await setTripSaved(req.auth.userId, req.params.tripId, true);
+
+    if (!saved) {
+      res.status(404).json({ message: "저장할 일정을 찾을 수 없습니다." });
+      return;
+    }
+
+    const detail = await getTripDetail(req.auth.userId, req.params.tripId, req.body?.selectedDayNumber);
+    res.status(200).json({
+      message: "내 일정에 저장했습니다.",
       trip: detail,
     });
   } catch (error) {

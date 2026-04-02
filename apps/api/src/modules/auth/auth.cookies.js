@@ -5,7 +5,6 @@ export function setSessionCookie(res, sessionId) {
     httpOnly: true,
     sameSite: "lax",
     secure: false,
-    maxAge: env.session.ttlSeconds * 1000,
     path: "/",
   });
 }

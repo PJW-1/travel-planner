@@ -114,6 +114,20 @@ function normalizeTransportType(value) {
   return value.trim().slice(0, 40);
 }
 
+function normalizeTravelRegion(value) {
+  const allowed = new Set([
+    "korea",
+    "japan",
+    "southeast_asia",
+    "europe",
+    "america",
+    "greater_china",
+    "oceania",
+  ]);
+
+  return allowed.has(value) ? value : "korea";
+}
+
 function normalizeInteger(value, { min = 0, max = 999 } = {}) {
   const numeric = Number(value ?? 0);
 
@@ -124,22 +138,61 @@ function normalizeInteger(value, { min = 0, max = 999 } = {}) {
   return Math.max(min, Math.min(max, Math.floor(numeric)));
 }
 
-function normalizeDecimal(value, { min = 0, max = 999 } = {}) {
+function normalizeDecimal(value, { min = 0, max = 999, precision = 2 } = {}) {
   const numeric = Number(value ?? 0);
 
   if (!Number.isFinite(numeric)) {
     return min;
   }
 
-  return Math.max(min, Math.min(max, Number(numeric.toFixed(2))));
+  return Math.max(min, Math.min(max, Number(numeric.toFixed(precision))));
 }
 
-function buildThemeJson({ lunchTime, dinnerTime, tags, placeCount }) {
+function normalizeLocationPoint(value) {
+  if (!value || typeof value !== "object") {
+    return null;
+  }
+
+  const name = typeof value.name === "string" ? value.name.trim().slice(0, 80) : "";
+  const address = typeof value.address === "string" ? value.address.trim().slice(0, 255) : "";
+  const hasCoordinates =
+    Number.isFinite(Number(value.lat)) && Number.isFinite(Number(value.lng));
+
+  if (!name && !address && !hasCoordinates) {
+    return null;
+  }
+
+  return {
+    name: name || address || "지점",
+    address,
+    lat:
+      value.lat === null || value.lat === undefined
+        ? null
+        : normalizeDecimal(value.lat, { min: -90, max: 90, precision: 7 }),
+    lng:
+      value.lng === null || value.lng === undefined
+        ? null
+        : normalizeDecimal(value.lng, { min: -180, max: 180, precision: 7 }),
+  };
+}
+
+function buildThemeJson({
+  lunchTime,
+  dinnerTime,
+  tags,
+  placeCount,
+  travelRegion,
+  startPoint,
+  endPoint,
+}) {
   return JSON.stringify({
     lunchTime: normalizeTime(lunchTime, "12:00"),
     dinnerTime: normalizeTime(dinnerTime, "18:30"),
     tags: normalizeTags(tags),
     placeCount: Math.max(0, Number(placeCount ?? 0)),
+    travelRegion: normalizeTravelRegion(travelRegion),
+    startPoint: normalizeLocationPoint(startPoint),
+    endPoint: normalizeLocationPoint(endPoint),
   });
 }
 
@@ -152,6 +205,7 @@ function mapTripListItem(row) {
     endDate: row.end_date,
     days: row.days,
     status: row.status,
+    isSaved: Boolean(row.featured_saved),
   };
 }
 
@@ -161,6 +215,9 @@ function mapStop(row) {
     name: row.name,
     category: row.category_label,
     categoryKey: row.category_key,
+    address: row.address ?? "",
+    lat: row.lat === null ? undefined : Number(row.lat),
+    lng: row.lng === null ? undefined : Number(row.lng),
     time: String(row.arrival_time).slice(0, 5),
     congestion: row.congestion_score,
     stayMinutes: row.stay_minutes,
@@ -212,8 +269,14 @@ function buildSummary(stopRows, analysisRow) {
 }
 
 function buildInsights(stopRows, summary, analysisRow) {
-  const savedWarnings = parseJsonValue(analysisRow?.warning_json, []);
-  if (Array.isArray(savedWarnings) && savedWarnings.length > 0) {
+  const savedPayload = parseJsonValue(analysisRow?.warning_json, []);
+  const savedWarnings = Array.isArray(savedPayload)
+    ? savedPayload
+    : Array.isArray(savedPayload.warnings)
+      ? savedPayload.warnings
+      : [];
+
+  if (savedWarnings.length > 0) {
     return savedWarnings;
   }
 
@@ -242,10 +305,45 @@ function buildInsights(stopRows, summary, analysisRow) {
   return insights;
 }
 
+function getRouteSegmentsForDay(analysisRow, dayNumber) {
+  const payload = parseJsonValue(analysisRow?.warning_json, {});
+  const daySegments = payload?.routeSegmentsByDay?.[String(dayNumber)];
+
+  if (!Array.isArray(daySegments)) {
+    return [];
+  }
+
+  return daySegments.map((segment) => ({
+    id: String(segment.id),
+    label: String(segment.label ?? ""),
+    mode: String(segment.mode ?? "walk"),
+    distanceKm: Number(segment.distanceKm ?? 0),
+    travelMinutes: Number(segment.travelMinutes ?? 0),
+    path: Array.isArray(segment.path)
+      ? segment.path
+          .map((point) => ({
+            lat: Number(point.lat),
+            lng: Number(point.lng),
+          }))
+          .filter((point) => Number.isFinite(point.lat) && Number.isFinite(point.lng))
+      : [],
+  }));
+}
+
 async function getOwnedTrip(connection, userId, tripId) {
   const [rows] = await connection.execute(
     `
-      SELECT id, user_id, title, destination, start_date, end_date, days, theme_json, status
+      SELECT
+        id,
+        user_id,
+        title,
+        destination,
+        start_date,
+        end_date,
+        days,
+        theme_json,
+        status,
+        featured_saved
       FROM trips
       WHERE id = ? AND user_id = ?
       LIMIT 1
@@ -385,7 +483,7 @@ export async function listUserTrips(userId) {
   const db = getDbPool();
   const [rows] = await db.execute(
     `
-      SELECT id, title, destination, start_date, end_date, days, status
+      SELECT id, title, destination, start_date, end_date, days, status, featured_saved
       FROM trips
       WHERE user_id = ?
       ORDER BY updated_at DESC, id DESC
@@ -441,7 +539,10 @@ export async function getTripDetail(userId, tripId, dayNumberInput = 1) {
         ts.stay_minutes,
         ts.map_x,
         ts.map_y,
-        ts.is_forked
+        ts.is_forked,
+        p.address,
+        p.lat,
+        p.lng
       FROM trip_stops ts
       INNER JOIN trip_days td ON td.id = ts.trip_day_id
       INNER JOIN places p ON p.id = ts.place_id
@@ -475,6 +576,7 @@ export async function getTripDetail(userId, tripId, dayNumberInput = 1) {
       endDate: trip.end_date,
       days: trip.days,
       status: trip.status,
+      isSaved: Boolean(trip.featured_saved),
     },
     tripConfig: {
       title: trip.title,
@@ -484,6 +586,9 @@ export async function getTripDetail(userId, tripId, dayNumberInput = 1) {
       lunchTime: theme.lunchTime ?? "12:00",
       dinnerTime: theme.dinnerTime ?? "18:30",
       tags: normalizeTags(theme.tags),
+      travelRegion: normalizeTravelRegion(theme.travelRegion),
+      startPoint: normalizeLocationPoint(theme.startPoint),
+      endPoint: normalizeLocationPoint(theme.endPoint),
     },
     days: dayRows.map((row) => ({
       id: String(row.id),
@@ -494,6 +599,7 @@ export async function getTripDetail(userId, tripId, dayNumberInput = 1) {
     stops: stopRows.map(mapStop),
     summary,
     insights,
+    routeSegments: getRouteSegmentsForDay(analysisRows[0], selectedDayNumber),
   };
 }
 
@@ -508,6 +614,9 @@ export async function createTrip(userId, payload) {
   const lunchTime = normalizeTime(payload.lunchTime, "12:00");
   const dinnerTime = normalizeTime(payload.dinnerTime, "18:30");
   const tags = normalizeTags(payload.tags);
+  const travelRegion = normalizeTravelRegion(payload.travelRegion);
+  const startPoint = normalizeLocationPoint(payload.startPoint);
+  const endPoint = normalizeLocationPoint(payload.endPoint);
   const tripId = createId();
 
   try {
@@ -541,7 +650,15 @@ export async function createTrip(userId, payload) {
         startDate,
         addDays(startDate, days - 1),
         days,
-        buildThemeJson({ lunchTime, dinnerTime, tags, placeCount: 0 }),
+        buildThemeJson({
+          lunchTime,
+          dinnerTime,
+          tags,
+          placeCount: 0,
+          travelRegion,
+          startPoint,
+          endPoint,
+        }),
       ],
     );
 
@@ -576,6 +693,9 @@ export async function updateTrip(userId, tripId, payload) {
     const lunchTime = normalizeTime(payload.lunchTime ?? currentTheme.lunchTime, "12:00");
     const dinnerTime = normalizeTime(payload.dinnerTime ?? currentTheme.dinnerTime, "18:30");
     const tags = normalizeTags(payload.tags ?? currentTheme.tags);
+    const travelRegion = normalizeTravelRegion(payload.travelRegion ?? currentTheme.travelRegion);
+    const startPoint = normalizeLocationPoint(payload.startPoint ?? currentTheme.startPoint);
+    const endPoint = normalizeLocationPoint(payload.endPoint ?? currentTheme.endPoint);
 
     const [stopCountRows] = await connection.execute(
       `
@@ -612,6 +732,9 @@ export async function updateTrip(userId, tripId, payload) {
           dinnerTime,
           tags,
           placeCount: Number(stopCountRows[0]?.stop_count ?? 0),
+          travelRegion,
+          startPoint,
+          endPoint,
         }),
         tripIdNumber,
         userId,
@@ -638,6 +761,20 @@ export async function deleteTrip(userId, tripId) {
       WHERE id = ? AND user_id = ?
     `,
     [Number(tripId), userId],
+  );
+
+  return result.affectedRows > 0;
+}
+
+export async function setTripSaved(userId, tripId, isSaved = true) {
+  const db = getDbPool();
+  const [result] = await db.execute(
+    `
+      UPDATE trips
+      SET featured_saved = ?
+      WHERE id = ? AND user_id = ?
+    `,
+    [Boolean(isSaved), Number(tripId), userId],
   );
 
   return result.affectedRows > 0;
@@ -695,6 +832,15 @@ export async function createTripStop(userId, tripId, payload) {
     const stopId = createId();
     const categoryKey = normalizeCategoryKey(payload.categoryKey);
     const categoryLabel = CATEGORY_LABELS[categoryKey];
+    const address = typeof payload.address === "string" ? payload.address.trim().slice(0, 255) : null;
+    const lat =
+      payload.lat === null || payload.lat === undefined
+        ? 0
+        : normalizeDecimal(payload.lat, { min: -90, max: 90, precision: 7 });
+    const lng =
+      payload.lng === null || payload.lng === undefined
+        ? 0
+        : normalizeDecimal(payload.lng, { min: -180, max: 180, precision: 7 });
     const time = normalizeTime(payload.time, "10:00");
     const stayMinutes = normalizeInteger(payload.stayMinutes, { min: 0, max: 1440 });
     const travelMinutes = normalizeInteger(payload.travelMinutes, { min: 0, max: 720 });
@@ -718,9 +864,9 @@ export async function createTripStop(userId, tripId, payload) {
         INSERT INTO places (
           id, name, category, category_key, address, lat, lng, region, source_type, thumbnail_url
         )
-        VALUES (?, ?, ?, ?, NULL, 0, 0, ?, 'user', NULL)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'user', NULL)
       `,
-      [placeId, name, categoryLabel, categoryKey, trip.destination],
+      [placeId, name, categoryLabel, categoryKey, address, lat, lng, trip.destination],
     );
 
     await connection.execute(
@@ -820,7 +966,10 @@ export async function updateTripStop(userId, tripId, stopId, payload) {
           ts.category_key,
           ts.stay_minutes,
           ts.is_forked,
-          p.name
+          p.name,
+          p.address,
+          p.lat,
+          p.lng
         FROM trip_stops ts
         INNER JOIN trip_days td ON td.id = ts.trip_day_id
         INNER JOIN places p ON p.id = ts.place_id
@@ -850,6 +999,18 @@ export async function updateTripStop(userId, tripId, stopId, payload) {
     const name = String(payload.name ?? stop.name).trim() || stop.name;
     const categoryKey = normalizeCategoryKey(payload.categoryKey ?? stop.category_key);
     const categoryLabel = CATEGORY_LABELS[categoryKey];
+    const address =
+      typeof payload.address === "string"
+        ? payload.address.trim().slice(0, 255)
+        : (stop.address ?? null);
+    const lat =
+      payload.lat === null || payload.lat === undefined
+        ? Number(stop.lat ?? 0)
+        : normalizeDecimal(payload.lat, { min: -90, max: 90, precision: 7 });
+    const lng =
+      payload.lng === null || payload.lng === undefined
+        ? Number(stop.lng ?? 0)
+        : normalizeDecimal(payload.lng, { min: -180, max: 180, precision: 7 });
     const time = normalizeTime(payload.time ?? String(stop.arrival_time).slice(0, 5), "10:00");
     const stayMinutes = normalizeInteger(payload.stayMinutes ?? stop.stay_minutes, {
       min: 0,
@@ -878,10 +1039,10 @@ export async function updateTripStop(userId, tripId, stopId, payload) {
     await connection.execute(
       `
         UPDATE places
-        SET name = ?, category = ?, category_key = ?, region = ?
+        SET name = ?, category = ?, category_key = ?, address = ?, lat = ?, lng = ?, region = ?
         WHERE id = ?
       `,
-      [name, categoryLabel, categoryKey, trip.destination, stop.place_id],
+      [name, categoryLabel, categoryKey, address, lat, lng, trip.destination, stop.place_id],
     );
 
     await connection.execute(

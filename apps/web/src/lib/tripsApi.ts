@@ -1,4 +1,4 @@
-import type { PlannerStop } from "@travel/shared";
+import type { PlannerStop, TravelRegion } from "@travel/shared";
 import { API_BASE_URL } from "./authApi";
 
 type PlannerInsight = {
@@ -13,6 +13,13 @@ type PlannerSummary = {
   optimizationScore: number;
 };
 
+export type TripLocationPoint = {
+  name: string;
+  address: string;
+  lat: number | null;
+  lng: number | null;
+};
+
 export type TripListItem = {
   id: string;
   title: string;
@@ -21,6 +28,7 @@ export type TripListItem = {
   endDate: string;
   days: number;
   status: string;
+  isSaved?: boolean;
 };
 
 export type PlannerDay = {
@@ -37,6 +45,21 @@ export type PlannerTripConfig = {
   lunchTime: string;
   dinnerTime: string;
   tags: string[];
+  travelRegion: TravelRegion;
+  startPoint: TripLocationPoint | null;
+  endPoint: TripLocationPoint | null;
+};
+
+export type PlannerRouteSegment = {
+  id: string;
+  label: string;
+  mode: string;
+  distanceKm: number;
+  travelMinutes: number;
+  path: Array<{
+    lat: number;
+    lng: number;
+  }>;
 };
 
 export type PlannerTripDetail = {
@@ -47,6 +70,7 @@ export type PlannerTripDetail = {
   stops: PlannerStop[];
   summary: PlannerSummary;
   insights: PlannerInsight[];
+  routeSegments: PlannerRouteSegment[];
 };
 
 export type TripPayload = {
@@ -57,6 +81,9 @@ export type TripPayload = {
   lunchTime: string;
   dinnerTime: string;
   tags: string[];
+  travelRegion: TravelRegion;
+  startPoint?: TripLocationPoint | null;
+  endPoint?: TripLocationPoint | null;
   selectedDayNumber?: number;
 };
 
@@ -64,6 +91,9 @@ export type TripStopPayload = {
   dayNumber: number;
   name: string;
   categoryKey: "transport" | "cafe" | "activity" | "view";
+  address?: string;
+  lat?: number | null;
+  lng?: number | null;
   time: string;
   stayMinutes: number;
   travelMinutes: number;
@@ -129,6 +159,65 @@ export async function updateTrip(tripId: string, payload: TripPayload) {
     },
     credentials: "include",
     body: JSON.stringify(payload),
+  });
+
+  return parseJson<{
+    message: string;
+    trip: PlannerTripDetail;
+  }>(response);
+}
+
+export async function saveTrip(tripId: string, selectedDayNumber?: number) {
+  const response = await fetch(`${API_BASE_URL}/trips/${tripId}/save`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    credentials: "include",
+    body: JSON.stringify({
+      selectedDayNumber,
+    }),
+  });
+
+  return parseJson<{
+    message: string;
+    trip: PlannerTripDetail;
+  }>(response);
+}
+
+export async function optimizeTrip(tripId: string, selectedDayNumber?: number) {
+  const response = await fetch(`${API_BASE_URL}/trips/${tripId}/optimize`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    credentials: "include",
+    body: JSON.stringify({
+      selectedDayNumber,
+    }),
+  });
+
+  return parseJson<{
+    message: string;
+    trip: PlannerTripDetail;
+  }>(response);
+}
+
+export async function reorderTripStops(
+  tripId: string,
+  dayNumber: number,
+  stopIds: string[],
+) {
+  const response = await fetch(`${API_BASE_URL}/trips/${tripId}/reorder`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    credentials: "include",
+    body: JSON.stringify({
+      dayNumber,
+      stopIds,
+    }),
   });
 
   return parseJson<{

@@ -8,6 +8,13 @@ type TimelineStopCardProps = {
   onEdit?: (stop: PlannerStop) => void;
   onDelete?: (stop: PlannerStop) => void;
   editing?: boolean;
+  draggable?: boolean;
+  dragging?: boolean;
+  dropTarget?: boolean;
+  onDragStart?: (stop: PlannerStop) => void;
+  onDragOver?: (stop: PlannerStop) => void;
+  onDrop?: (stop: PlannerStop) => void;
+  onDragEnd?: () => void;
 };
 
 export function TimelineStopCard({
@@ -17,12 +24,46 @@ export function TimelineStopCard({
   onEdit,
   onDelete,
   editing = false,
+  draggable = false,
+  dragging = false,
+  dropTarget = false,
+  onDragStart,
+  onDragOver,
+  onDrop,
+  onDragEnd,
 }: TimelineStopCardProps) {
   return (
     <div className="timeline-stop">
       <div className="timeline-stop__index">{index + 1}</div>
       {!last ? <div className="timeline-stop__line" /> : null}
-      <article className={editing ? "timeline-stop__card is-editing" : "timeline-stop__card"}>
+      <article
+        className={[
+          "timeline-stop__card",
+          editing ? "is-editing" : "",
+          draggable ? "is-draggable" : "",
+          dragging ? "is-dragging" : "",
+          dropTarget ? "is-drop-target" : "",
+        ]
+          .filter(Boolean)
+          .join(" ")}
+        draggable={draggable}
+        onDragStart={() => onDragStart?.(stop)}
+        onDragOver={(event) => {
+          if (!draggable) {
+            return;
+          }
+          event.preventDefault();
+          onDragOver?.(stop);
+        }}
+        onDrop={(event) => {
+          if (!draggable) {
+            return;
+          }
+          event.preventDefault();
+          onDrop?.(stop);
+        }}
+        onDragEnd={onDragEnd}
+      >
         <div className="timeline-stop__header">
           <div>
             <h3>{stop.name}</h3>
@@ -32,6 +73,7 @@ export function TimelineStopCard({
         </div>
 
         <div className="timeline-stop__details">
+          {stop.address ? <span>{stop.address}</span> : null}
           <span>혼잡도 {stop.congestion}%</span>
           <span>체류 {stop.stayMinutes}분</span>
           {stop.distanceKm ? <span>이동 {stop.distanceKm.toFixed(1)}km</span> : null}

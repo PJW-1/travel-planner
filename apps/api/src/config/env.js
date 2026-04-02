@@ -37,4 +37,10 @@ export const env = {
   redis: {
     url: process.env.REDIS_URL ?? "redis://127.0.0.1:6379",
   },
+  googleMaps: {
+    serverApiKey: process.env.GOOGLE_MAPS_SERVER_API_KEY ?? "",
+  },
+  kakao: {
+    restApiKey: process.env.KAKAO_REST_API_KEY ?? "",
+  },
 };
