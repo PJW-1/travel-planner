@@ -1,6 +1,12 @@
 import bcrypt from "bcryptjs";
-import { createLocalUser, findUserByEmail, touchLastLoginAt } from "./auth.repository.js";
-import { createUserSession } from "./session.store.js";
+import {
+  createLocalUser,
+  findUserByEmail,
+  findUserById,
+  touchLastLoginAt,
+  updateUserProfile,
+} from "./auth.repository.js";
+import { createUserSession, updateUserSession } from "./session.store.js";
 
 function normalizeEmail(email) {
   return email.trim().toLowerCase();
@@ -34,15 +40,18 @@ export async function registerUser({ email, password, nickname }) {
     passwordHash,
   });
 
-  const session = await createUserSession(user);
+  const session = await createUserSession(user, {
+    rememberMe: false,
+  });
 
   return {
     user: sanitizeUser(user),
     sessionId: session.id,
+    ttlSeconds: session.ttlSeconds,
   };
 }
 
-export async function loginUser({ email, password }) {
+export async function loginUser({ email, password, rememberMe = false }) {
   const normalizedEmail = normalizeEmail(email);
   const user = await findUserByEmail(normalizedEmail);
 
@@ -61,7 +70,9 @@ export async function loginUser({ email, password }) {
   }
 
   await touchLastLoginAt(user.id);
-  const session = await createUserSession(user);
+  const session = await createUserSession(user, {
+    rememberMe,
+  });
 
   return {
     user: sanitizeUser({
@@ -69,5 +80,44 @@ export async function loginUser({ email, password }) {
       lastLoginAt: new Date().toISOString(),
     }),
     sessionId: session.id,
+    ttlSeconds: session.ttlSeconds,
   };
+}
+
+export async function getCurrentUser(userId) {
+  const user = await findUserById(userId);
+
+  if (!user) {
+    const error = new Error("사용자 정보를 찾지 못했습니다.");
+    error.status = 404;
+    throw error;
+  }
+
+  return sanitizeUser(user);
+}
+
+export async function updateCurrentUserProfile({ userId, sessionId, nickname }) {
+  const normalizedNickname = String(nickname ?? "").trim();
+
+  if (!normalizedNickname) {
+    const error = new Error("닉네임을 입력해주세요.");
+    error.status = 400;
+    throw error;
+  }
+
+  if (normalizedNickname.length < 2) {
+    const error = new Error("닉네임은 최소 2자 이상이어야 합니다.");
+    error.status = 400;
+    throw error;
+  }
+
+  const user = await updateUserProfile(userId, {
+    nickname: normalizedNickname.slice(0, 30),
+  });
+
+  await updateUserSession(sessionId, {
+    nickname: user.nickname,
+  });
+
+  return sanitizeUser(user);
 }

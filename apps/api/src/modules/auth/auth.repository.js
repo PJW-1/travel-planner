@@ -72,3 +72,41 @@ export async function touchLastLoginAt(userId) {
     [userId],
   );
 }
+
+export async function findUserById(userId) {
+  const db = getDbPool();
+  const [rows] = await db.execute(
+    `
+      SELECT
+        id,
+        email,
+        nickname,
+        provider,
+        status,
+        last_login_at,
+        created_at,
+        updated_at,
+        password_hash
+      FROM users
+      WHERE id = ?
+      LIMIT 1
+    `,
+    [userId],
+  );
+
+  return mapUser(rows[0]);
+}
+
+export async function updateUserProfile(userId, { nickname }) {
+  const db = getDbPool();
+  await db.execute(
+    `
+      UPDATE users
+      SET nickname = ?, updated_at = NOW()
+      WHERE id = ?
+    `,
+    [nickname, userId],
+  );
+
+  return findUserById(userId);
+}

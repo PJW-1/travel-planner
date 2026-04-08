@@ -1,200 +1,140 @@
 import { useEffect, useState } from "react";
-import { ArrowRight, CalendarDays, Compass, GitFork, TrendingUp, Youtube } from "lucide-react";
+import { ChevronRight, MapPin, Star } from "lucide-react";
 import { Link } from "react-router-dom";
-import type { TrendSpot, TripConfig } from "@travel/shared";
-import { MetricCard } from "@/components/cards/MetricCard";
-import { QuickActionCard } from "@/components/cards/QuickActionCard";
-import { TrendCard } from "@/components/cards/TrendCard";
-import { SectionTitle } from "@/components/SectionTitle";
-import { fetchHomeContent } from "@/lib/contentApi";
 
-type UpcomingTrip = {
-  month: string;
-  day: string;
-  title: string;
-  description: string;
-};
+const popularDestinations = [
+  {
+    id: 1,
+    city: "파리",
+    country: "프랑스",
+    title: "에펠탑이 보이는 로맨틱한 거리",
+    rating: "4.9",
+    imageUrl:
+      "https://images.unsplash.com/photo-1499856871958-5b9627545d1a?auto=format&fit=crop&q=80&w=900",
+  },
+  {
+    id: 2,
+    city: "도쿄",
+    country: "일본",
+    title: "전통과 현대가 공존하는 도심",
+    rating: "4.8",
+    imageUrl:
+      "https://images.unsplash.com/photo-1540959733332-eab4deabeeaf?auto=format&fit=crop&q=80&w=900",
+  },
+  {
+    id: 3,
+    city: "발리",
+    country: "인도네시아",
+    title: "여유로운 휴양지에서의 하루",
+    rating: "4.9",
+    imageUrl:
+      "https://images.unsplash.com/photo-1537996194471-e657df975ab4?auto=format&fit=crop&q=80&w=900",
+  },
+  {
+    id: 4,
+    city: "뉴욕",
+    country: "미국",
+    title: "잠들지 않는 화려한 도시",
+    rating: "4.7",
+    imageUrl:
+      "https://images.unsplash.com/photo-1496442226666-8d4d0e62e6e9?auto=format&fit=crop&q=80&w=900",
+  },
+];
+
+const heroBackgroundImage =
+  "https://images.unsplash.com/photo-1469854523086-cc02fe5d8800?auto=format&fit=crop&q=80&w=2000";
 
 export function HomePage() {
-  const [upcomingTrip, setUpcomingTrip] = useState<UpcomingTrip | null>(null);
-  const [tripConfig, setTripConfig] = useState<TripConfig | null>(null);
-  const [trendSpots, setTrendSpots] = useState<TrendSpot[]>([]);
+  const [currentSlide, setCurrentSlide] = useState(0);
 
   useEffect(() => {
-    let isMounted = true;
-
-    async function loadHomeContent() {
-      try {
-        const data = await fetchHomeContent();
-
-        if (!isMounted) {
-          return;
-        }
-
-        setUpcomingTrip(data.upcomingTrip);
-        setTripConfig(data.tripConfig);
-        setTrendSpots(data.trendSpots);
-      } catch {
-        if (!isMounted) {
-          return;
-        }
-
-        setUpcomingTrip(null);
-        setTripConfig(null);
-        setTrendSpots([]);
-      }
-    }
-
-    void loadHomeContent();
+    const timer = window.setInterval(() => {
+      setCurrentSlide((previous) => (previous + 1) % popularDestinations.length);
+    }, 4000);
 
     return () => {
-      isMounted = false;
+      window.clearInterval(timer);
     };
   }, []);
 
-  const currentTripConfig = tripConfig ?? {
-    destination: "서울",
-    days: 3,
-    lunchTime: "12:00",
-    dinnerTime: "18:30",
-    tags: ["감성", "맛집", "도보 여행"],
-  };
-
-  const currentUpcomingTrip = upcomingTrip ?? {
-    month: "May",
-    day: "24",
-    title: "서울 성수동 당일치기 투어",
-    description: "서울역 출발 · 총 4개 장소 · 동선 점수 92",
-  };
-
   return (
-    <div className="page-grid">
-      <section className="hero-panel">
-        <div className="hero-panel__content">
-          <p className="eyebrow">여행 설계 플랫폼</p>
-          <h1>AI와 커뮤니티 데이터를 바탕으로 더 현실적이고 효율적인 여행 동선을 설계해보세요</h1>
-          <p className="hero-panel__description">
-            Travel Master는 여행 일정을 단순히 기록하는 도구가 아니라, 영상에서 영감을 얻고 AI로
-            장소를 모은 뒤 동선을 분석하고 커뮤니티 루트를 조합해 완성도를 높이는 여행 설계
-            플랫폼입니다.
-          </p>
+    <div className="home-minimal">
+      <section
+        className="home-minimal__hero"
+        style={{ backgroundImage: `url(${heroBackgroundImage})` }}
+      >
+        <div className="home-minimal__overlay" />
 
-          <div className="hero-panel__actions">
-            <Link to="/setup" className="button button--primary">
-              새 일정 만들기
-              <ArrowRight size={16} />
+        <div className="home-minimal__content">
+          <div className="home-minimal__copy">
+            <p className="home-minimal__eyebrow">계획부터 예약까지, 물 흐르듯 쉬운</p>
+            <h1>
+              나만의 완벽한 여행 앱
+              <br />
+              트립플로우
+            </h1>
+
+            <Link to="/setup" className="home-minimal__cta">
+              일정 만들러 가기
+              <ChevronRight size={18} />
             </Link>
-            <Link to="/planner" className="button button--secondary">
-              플래너 바로 보기
-            </Link>
           </div>
 
-          <div className="hero-panel__metrics">
-            <MetricCard
-              label="다가오는 일정"
-              value={`${currentUpcomingTrip.month} ${currentUpcomingTrip.day}`}
-              hint={currentUpcomingTrip.title}
-            />
-            <MetricCard
-              label="여행 태그"
-              value={`${currentTripConfig.tags.length}개`}
-              hint={currentTripConfig.tags.join(" / ")}
-            />
-            <MetricCard
-              label="여행 기간"
-              value={`${currentTripConfig.days}일`}
-              hint="식사 시간과 선호 태그를 반영한 기본 설정"
-            />
-          </div>
-        </div>
+          <div className="home-minimal__showcase">
+            <div className="home-minimal__glow" />
 
-        <aside className="upcoming-card">
-          <div className="upcoming-card__date">
-            <span>{currentUpcomingTrip.month}</span>
-            <strong>{currentUpcomingTrip.day}</strong>
-          </div>
-          <div className="upcoming-card__body">
-            <p className="eyebrow">다가오는 일정</p>
-            <h2>{currentUpcomingTrip.title}</h2>
-            <p>{currentUpcomingTrip.description}</p>
-          </div>
-          <Link to="/planner" className="upcoming-card__link">
-            일정 편집
-            <ArrowRight size={16} />
-          </Link>
-        </aside>
-      </section>
+            <div className="home-minimal__card">
+              <div className="home-minimal__badge">
+                <span className="home-minimal__pulse" />
+                실시간 인기 여행지
+              </div>
 
-      <section className="content-grid">
-        <div className="content-grid__main">
-          <SectionTitle
-            title="빠른 시작"
-            subtitle="여행 설계, AI 추출, 루트 포크라는 세 가지 흐름으로 바로 진입할 수 있습니다."
-            icon={<Compass size={16} />}
-          />
-          <div className="quick-action-grid">
-            <QuickActionCard
-              to="/setup"
-              title="여행 기본 설계"
-              subtitle="여행지와 취향 조건을 먼저 정리합니다"
-              icon={<CalendarDays size={24} />}
-              accentClass="quick-action--blue"
-            />
-            <QuickActionCard
-              to="/ai-lab"
-              title="AI 장소 추출"
-              subtitle="유튜브 영상에서 장소 후보를 찾습니다"
-              icon={<Youtube size={24} />}
-              accentClass="quick-action--red"
-            />
-            <QuickActionCard
-              to="/community"
-              title="루트 마켓"
-              subtitle="다른 여행자의 동선을 포크해 시작합니다"
-              icon={<GitFork size={24} />}
-              accentClass="quick-action--gold"
-            />
-          </div>
-        </div>
+              {popularDestinations.map((destination, index) => (
+                <div
+                  key={destination.id}
+                  className={
+                    index === currentSlide
+                      ? "home-minimal__slide is-active"
+                      : "home-minimal__slide"
+                  }
+                >
+                  <img src={destination.imageUrl} alt={destination.city} />
 
-        <aside className="content-grid__side">
-          <SectionTitle
-            title="이번 여행 가이드"
-            subtitle="일정을 만들기 전에 기본 조건을 먼저 확인해보세요"
-            icon={<TrendingUp size={16} />}
-          />
-          <div className="stack-card">
-            <div>
-              <span>점심 추천 시간</span>
-              <strong>{currentTripConfig.lunchTime}</strong>
-            </div>
-            <div>
-              <span>저녁 추천 시간</span>
-              <strong>{currentTripConfig.dinnerTime}</strong>
-            </div>
-            <div>
-              <span>추천 분위기</span>
-              <strong>{currentTripConfig.tags.join(" / ")}</strong>
+                  <div className="home-minimal__info">
+                    <div className="home-minimal__meta">
+                      <span>
+                        <MapPin size={14} />
+                        {destination.country}
+                      </span>
+                      <strong>
+                        <Star size={14} />
+                        {destination.rating}
+                      </strong>
+                    </div>
+
+                    <h2>{destination.city}</h2>
+                    <p>{destination.title}</p>
+                  </div>
+                </div>
+              ))}
+
+              <div className="home-minimal__pagination">
+                {popularDestinations.map((destination, index) => (
+                  <button
+                    key={destination.id}
+                    type="button"
+                    className={
+                      index === currentSlide
+                        ? "home-minimal__dot is-active"
+                        : "home-minimal__dot"
+                    }
+                    onClick={() => setCurrentSlide(index)}
+                    aria-label={`${destination.city} 보기`}
+                  />
+                ))}
+              </div>
             </div>
           </div>
-        </aside>
-      </section>
-
-      <section className="trend-section">
-        <SectionTitle
-          title="지금 뜨는 장소"
-          subtitle="앞으로는 지역별 조회 수, 저장 수, 검색량 기반 데이터까지 반영할 수 있습니다."
-          icon={<TrendingUp size={16} />}
-          action={
-            <Link to="/community" className="text-link">
-              전체 보기
-            </Link>
-          }
-        />
-        <div className="trend-grid">
-          {trendSpots.map((spot) => (
-            <TrendCard key={spot.rank} title={spot.title} rank={spot.rank} tag={spot.tag} />
-          ))}
         </div>
       </section>
     </div>

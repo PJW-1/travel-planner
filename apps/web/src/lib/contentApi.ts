@@ -20,6 +20,96 @@ type PlannerSummary = {
   optimizationScore: number;
 };
 
+export type AiLabPlace = {
+  id: string;
+  placeId: string;
+  name: string;
+  rawPlaceName?: string;
+  address: string;
+  lat: number;
+  lng: number;
+  confidenceScore: number;
+  isSaved?: boolean;
+  region?: string;
+};
+
+export type AiLabExtraction = {
+  id: string;
+  youtubeUrl: string;
+  videoTitle: string;
+  status: string;
+  requestedAt: string;
+  completedAt: string | null;
+  places: AiLabPlace[];
+};
+
+export type SavedAiPlace = {
+  id: string;
+  placeId: string;
+  title: string;
+  categoryKey?: PlannerStop["categoryKey"];
+  address: string;
+  lat: number;
+  lng: number;
+  region: string;
+  sourceTitle: string;
+  youtubeUrl: string;
+  date: string;
+};
+
+export type CommunityRouteSummary = MarketRoute & {
+  tripId: string;
+  description: string;
+  forkCount: number;
+  destination: string;
+  days: number;
+  dateRange: string;
+  publishedAt: string;
+  likedByMe?: boolean;
+};
+
+export type CommunityRouteDetail = {
+  id: string;
+  tripId: string;
+  title: string;
+  description: string;
+  author: string;
+  theme: MarketRoute["theme"];
+  destination: string;
+  dateRange: string;
+  daysCount: number;
+  likes: number;
+  comments: number;
+  forkCount: number;
+  tags: string[];
+  publishedAt: string;
+  likedByMe?: boolean;
+  days: Array<{
+    id: string;
+    dayNumber: number;
+    date: string;
+    title: string;
+    stops: Array<{
+      id: string;
+      placeId: string;
+      name: string;
+      address: string;
+      region: string;
+      category: string;
+      categoryKey: PlannerStop["categoryKey"];
+      lat: number;
+      lng: number;
+      arrivalTime: string;
+      transportType: string;
+      travelMinutes: number;
+      distanceKm: number;
+      memo: string;
+      order: number;
+      isSaved?: boolean;
+    }>;
+  }>;
+};
+
 async function parseJson<T>(response: Response): Promise<T> {
   const data = await response.json().catch(() => ({}));
 
@@ -67,8 +157,57 @@ export async function fetchCommunityRoutes() {
   });
 
   return parseJson<{
-    routes: MarketRoute[];
+    routes: CommunityRouteSummary[];
   }>(response);
+}
+
+export async function fetchCommunityRouteDetail(routeId: string) {
+  const response = await fetch(`${API_BASE_URL}/community/routes/${routeId}`, {
+    method: "GET",
+    credentials: "include",
+  });
+
+  return parseJson<{
+    route: CommunityRouteDetail;
+  }>(response);
+}
+
+export async function importCommunityRoute(routeId: string) {
+  const response = await fetch(`${API_BASE_URL}/community/routes/${routeId}/import`, {
+    method: "POST",
+    credentials: "include",
+  });
+
+  return parseJson<{
+    message: string;
+    imported: {
+      routeId: string;
+      tripId: string;
+      title: string;
+    };
+  }>(response);
+}
+
+export async function toggleCommunityRouteLike(routeId: string) {
+  const response = await fetch(`${API_BASE_URL}/community/routes/${routeId}/like`, {
+    method: "POST",
+    credentials: "include",
+  });
+
+  return parseJson<{
+    message: string;
+    liked: boolean;
+    likeCount: number;
+  }>(response);
+}
+
+export async function saveCommunityPlace(placeId: string) {
+  const response = await fetch(`${API_BASE_URL}/community/places/${placeId}/save`, {
+    method: "POST",
+    credentials: "include",
+  });
+
+  return parseJson<{ message: string }>(response);
 }
 
 export async function fetchAiLabOverview() {
@@ -79,6 +218,45 @@ export async function fetchAiLabOverview() {
 
   return parseJson<{
     extractedPlaces: string[];
+    extractions: AiLabExtraction[];
+  }>(response);
+}
+
+export async function runAiExtraction(payload: {
+  youtubeUrl: string;
+  travelRegion: string;
+}) {
+  const response = await fetch(`${API_BASE_URL}/ai-lab/extract`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    credentials: "include",
+    body: JSON.stringify(payload),
+  });
+
+  return parseJson<{
+    message: string;
+    extraction: AiLabExtraction | null;
+    overview: {
+      extractedPlaces: string[];
+      extractions: AiLabExtraction[];
+    };
+  }>(response);
+}
+
+export async function saveAiPlace(placeId: string) {
+  const response = await fetch(`${API_BASE_URL}/ai-lab/places/${placeId}/save`, {
+    method: "POST",
+    credentials: "include",
+  });
+
+  return parseJson<{
+    message: string;
+    overview: {
+      extractedPlaces: string[];
+      extractions: AiLabExtraction[];
+    };
   }>(response);
 }
 
@@ -90,5 +268,6 @@ export async function fetchMySummary() {
 
   return parseJson<{
     savedPlans: SavedPlan[];
+    savedAiPlaces: SavedAiPlace[];
   }>(response);
 }

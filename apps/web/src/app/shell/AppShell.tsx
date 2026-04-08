@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { MapPin, Sparkles, UserCircle2 } from "lucide-react";
-import { NavLink, Outlet } from "react-router-dom";
+import { NavLink, Outlet, useLocation } from "react-router-dom";
 import { fetchMe } from "@/lib/authApi";
 
 const navItems = [
@@ -21,6 +21,8 @@ type AuthUser = {
 
 export function AppShell() {
   const [authUser, setAuthUser] = useState<AuthUser | null>(null);
+  const location = useLocation();
+  const isHomePage = location.pathname === "/home";
 
   useEffect(() => {
     let isMounted = true;
@@ -53,19 +55,25 @@ export function AppShell() {
   }, []);
 
   return (
-    <div className="app-shell">
-      <header className="topbar">
+    <div className={isHomePage ? "app-shell app-shell--home" : "app-shell"}>
+      <header className={isHomePage ? "topbar topbar--overlay" : "topbar"}>
         <NavLink to="/home" className="brand">
-          <div className="brand__badge">
-            <MapPin size={22} strokeWidth={2.5} />
-          </div>
-          <div>
-            <p className="eyebrow">지능형 여행 설계 플랫폼</p>
-            <strong>TripFlow</strong>
-          </div>
+          {isHomePage ? (
+            <strong className="brand__wordmark">TripFlow</strong>
+          ) : (
+            <>
+              <div className="brand__badge">
+                <MapPin size={22} strokeWidth={2.5} />
+              </div>
+              <div>
+                <p className="eyebrow">지능형 여행 설계 플랫폼</p>
+                <strong>TripFlow</strong>
+              </div>
+            </>
+          )}
         </NavLink>
 
-        <nav className="nav">
+        <nav className={isHomePage ? "nav nav--overlay" : "nav"}>
           {navItems.map((item) => (
             <NavLink
               key={item.to}
@@ -78,22 +86,27 @@ export function AppShell() {
         </nav>
 
         <div className="topbar__actions">
-          <NavLink to={authUser ? "/my" : "/login"} className="profile-link">
+          <NavLink
+            to={authUser ? "/my" : "/login"}
+            className={isHomePage ? "profile-link profile-link--overlay" : "profile-link"}
+          >
             <UserCircle2 size={18} />
             {authUser ? "마이페이지" : "로그인"}
           </NavLink>
         </div>
       </header>
 
-      <main className="page-frame">
-        <div className="hero-backdrop hero-backdrop--one" />
-        <div className="hero-backdrop hero-backdrop--two" />
+      <main className={isHomePage ? "page-frame page-frame--home" : "page-frame"}>
+        {!isHomePage ? <div className="hero-backdrop hero-backdrop--one" /> : null}
+        {!isHomePage ? <div className="hero-backdrop hero-backdrop--two" /> : null}
         <div className="page-frame__content">
           <Outlet />
         </div>
       </main>
 
-      <button className="floating-action">
+      <button
+        className={isHomePage ? "floating-action floating-action--overlay" : "floating-action"}
+      >
         <Sparkles size={16} />
         AI 일정 도우미
       </button>

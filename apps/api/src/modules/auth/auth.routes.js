@@ -2,7 +2,7 @@ import { Router } from "express";
 import { env } from "../../config/env.js";
 import { clearSessionCookie, setSessionCookie } from "./auth.cookies.js";
 import { requireAuth } from "./auth.middleware.js";
-import { loginUser, registerUser } from "./auth.service.js";
+import { getCurrentUser, loginUser, registerUser, updateCurrentUserProfile } from "./auth.service.js";
 import { deleteUserSession } from "./session.store.js";
 
 export const authRouter = Router();
@@ -30,6 +30,7 @@ function validateRegisterBody(body) {
 function validateLoginBody(body) {
   const email = typeof body.email === "string" ? body.email.trim() : "";
   const password = typeof body.password === "string" ? body.password : "";
+  const rememberMe = Boolean(body.rememberMe);
 
   if (!email || !password) {
     const error = new Error("이메일과 비밀번호를 입력해주세요.");
@@ -37,7 +38,7 @@ function validateLoginBody(body) {
     throw error;
   }
 
-  return { email, password };
+  return { email, password, rememberMe };
 }
 
 authRouter.post("/register", async (req, res, next) => {
@@ -45,7 +46,7 @@ authRouter.post("/register", async (req, res, next) => {
     const payload = validateRegisterBody(req.body);
     const result = await registerUser(payload);
 
-    setSessionCookie(res, result.sessionId);
+    setSessionCookie(res, result.sessionId, result.ttlSeconds);
 
     res.status(201).json({
       message: "회원가입이 완료되었습니다.",
@@ -61,7 +62,7 @@ authRouter.post("/login", async (req, res, next) => {
     const payload = validateLoginBody(req.body);
     const result = await loginUser(payload);
 
-    setSessionCookie(res, result.sessionId);
+    setSessionCookie(res, result.sessionId, result.ttlSeconds);
 
     res.status(200).json({
       message: "로그인에 성공했습니다.",
@@ -72,10 +73,49 @@ authRouter.post("/login", async (req, res, next) => {
   }
 });
 
-authRouter.get("/me", requireAuth, async (req, res) => {
-  res.status(200).json({
-    user: req.auth,
-  });
+authRouter.get("/me", requireAuth, async (req, res, next) => {
+  try {
+    const user = await getCurrentUser(req.auth.userId);
+
+    res.status(200).json({
+      user: {
+        userId: user.id,
+        email: user.email,
+        nickname: user.nickname,
+        provider: user.provider,
+        status: user.status,
+        createdAt: req.auth.createdAt,
+        lastLoginAt: user.lastLoginAt,
+      },
+    });
+  } catch (error) {
+    next(error);
+  }
+});
+
+authRouter.patch("/profile", requireAuth, async (req, res, next) => {
+  try {
+    const user = await updateCurrentUserProfile({
+      userId: req.auth.userId,
+      sessionId: req.cookies?.[env.session.cookieName],
+      nickname: req.body?.nickname,
+    });
+
+    res.status(200).json({
+      message: "프로필 정보를 업데이트했습니다.",
+      user: {
+        userId: user.id,
+        email: user.email,
+        nickname: user.nickname,
+        provider: user.provider,
+        status: user.status,
+        createdAt: req.auth.createdAt,
+        lastLoginAt: user.lastLoginAt,
+      },
+    });
+  } catch (error) {
+    next(error);
+  }
 });
 
 authRouter.post("/logout", async (req, res, next) => {

@@ -9,7 +9,6 @@ import {
 } from "lucide-react";
 import { Link, useSearchParams } from "react-router-dom";
 import type { PlannerStop } from "@travel/shared";
-import { PageHeader } from "@/components/PageHeader";
 import { InsightPanel } from "@/components/planner/InsightPanel";
 import { JourneyAnchorCard } from "@/components/planner/JourneyAnchorCard";
 import { PlannerCanvas } from "@/components/planner/PlannerCanvas";
@@ -20,6 +19,7 @@ import {
   fetchTrips,
   reorderTripStops,
   saveTrip,
+  type PlannerRouteSegment,
   type PlannerTripDetail,
   type TripListItem,
 } from "@/lib/tripsApi";
@@ -29,6 +29,23 @@ const emptySummary = {
   totalTravelMinutes: 0,
   optimizationScore: 100,
 };
+
+function getSegmentModeLabel(mode?: string) {
+  switch (mode) {
+    case "walk":
+      return "도보";
+    case "car":
+      return "차량";
+    case "taxi":
+      return "택시";
+    case "subway":
+      return "지하철";
+    case "bus":
+      return "버스";
+    default:
+      return null;
+  }
+}
 
 function formatStartDate(dateValue: string) {
   if (!dateValue) {
@@ -142,7 +159,7 @@ export function PlannerPage() {
 
     try {
       if (tripDetail.trip.isSaved) {
-        setSaveMessage("저장된 일정에 현재 변경 내용이 반영됩니다.");
+        setSaveMessage("저장된 일정에 현재 변경 사항을 반영했습니다.");
         return;
       }
 
@@ -207,53 +224,21 @@ export function PlannerPage() {
   }
 
   const currentStops: PlannerStop[] = tripDetail?.stops ?? [];
+  const currentRouteSegments: PlannerRouteSegment[] = tripDetail?.routeSegments ?? [];
   const startPoint = tripDetail?.tripConfig.startPoint ?? null;
   const displayStopsCount = currentStops.length + (startPoint ? 1 : 0);
   const currentSummary = tripDetail?.summary ?? emptySummary;
   const currentInsights = tripDetail?.insights ?? [];
-  const isSaved = Boolean(tripDetail?.trip.isSaved);
 
   const savedTrips = useMemo(() => myTrips.filter((item) => item.isSaved), [myTrips]);
   const currentTripItem = useMemo(
     () => savedTrips.find((item) => item.id === tripId) ?? null,
     [savedTrips, tripId],
   );
+  const isSaved = Boolean(tripDetail?.trip.isSaved);
 
   return (
     <div className="planner-page">
-      <PageHeader
-        eyebrow="최적화 결과"
-        title={tripDetail ? tripDetail.trip.title : "플랜 불러오기"}
-        description={
-          tripDetail
-            ? `${tripDetail.trip.destination} 기준으로 정리한 동선 결과입니다. 순서를 직접 드래그해서 다시 조정할 수도 있습니다.`
-            : "저장한 일정에서 플랜을 불러오거나 Setup에서 새 일정을 만들어 결과를 확인해보세요."
-        }
-        actions={
-          <>
-            {tripId ? (
-              <Link to={`/setup?tripId=${tripId}`} className="button button--secondary">
-                <ArrowLeft size={16} />
-                설정으로 돌아가기
-              </Link>
-            ) : null}
-            <button
-              type="button"
-              className="button button--primary"
-              onClick={handleSaveTrip}
-              disabled={!tripId || isSaving}
-            >
-              {isSaved ? <Check size={16} /> : <Sparkles size={16} />}
-              {isSaving
-                ? "저장 중..."
-                : isSaved
-                  ? "저장된 일정 업데이트"
-                  : "내 일정에 저장"}
-            </button>
-          </>
-        }
-      />
-
       {error ? <p className="form-feedback form-feedback--error">{error}</p> : null}
       {saveMessage ? <p className="form-feedback form-feedback--success">{saveMessage}</p> : null}
 
@@ -261,7 +246,7 @@ export function PlannerPage() {
         <section className="planner-editor-card">
           <div className="planner-empty">
             <strong>아직 선택된 일정이 없습니다.</strong>
-            <p>플랜 목록에서 저장된 일정을 불러오거나 새 일정 만들기로 바로 이동해보세요.</p>
+            <p>플랜 목록에서 저장된 일정을 불러오거나 새 일정 만들기로 바로 이동해 보세요.</p>
             <Link to="/setup" className="button button--primary">
               새 일정 만들기
             </Link>
@@ -277,6 +262,12 @@ export function PlannerPage() {
               <label>현재 일정</label>
               <strong>{tripDetail ? tripDetail.trip.title : loading ? "불러오는 중" : "-"}</strong>
             </div>
+            {tripId ? (
+              <Link to={`/setup?tripId=${tripId}`} className="button button--secondary">
+                <ArrowLeft size={16} />
+                설정으로 돌아가기
+              </Link>
+            ) : null}
           </div>
 
           <article className="planner-editor-card">
@@ -315,7 +306,7 @@ export function PlannerPage() {
             {displayStopsCount === 0 && !loading ? (
               <div className="planner-empty">
                 <strong>표시할 장소가 없습니다.</strong>
-                <p>일정을 먼저 불러오거나 Setup에서 장소를 추가한 뒤 다시 확인해주세요.</p>
+                <p>일정을 먼저 불러오거나 Setup에서 장소를 추가한 뒤 다시 확인해 주세요.</p>
               </div>
             ) : (
               <>
@@ -323,36 +314,46 @@ export function PlannerPage() {
                   <JourneyAnchorCard
                     title={startPoint.name}
                     address={startPoint.address}
+                    index="S"
                     showConnector={currentStops.length > 0}
+                    moveModeLabel={getSegmentModeLabel(currentRouteSegments[0]?.mode)}
+                    moveMinutes={currentRouteSegments[0]?.travelMinutes ?? currentStops[0]?.travelMinutes}
                   />
                 ) : null}
-                {currentStops.map((stop, index) => (
-                  <TimelineStopCard
-                    key={stop.id}
-                    stop={stop}
-                    index={index + (startPoint ? 1 : 0)}
-                    last={index === currentStops.length - 1}
-                    draggable={currentStops.length > 1 && !isReordering}
-                    dragging={draggingStopId === stop.id}
-                    dropTarget={dropTargetStopId === stop.id}
-                    onDragStart={(dragStop) => {
-                      setDraggingStopId(dragStop.id);
-                      setDropTargetStopId(dragStop.id);
-                    }}
-                    onDragOver={(overStop) => {
-                      if (!draggingStopId || draggingStopId === overStop.id) {
-                        return;
-                      }
+                {currentStops.map((stop, index) => {
+                  const isLastStop = index === currentStops.length - 1;
+                  const nextSegmentIndex = startPoint ? index + 1 : index;
+                  const nextSegment = !isLastStop ? currentRouteSegments[nextSegmentIndex] : undefined;
 
-                      setDropTargetStopId(overStop.id);
-                    }}
-                    onDrop={handleDropReorder}
-                    onDragEnd={() => {
-                      setDraggingStopId(null);
-                      setDropTargetStopId(null);
-                    }}
-                  />
-                ))}
+                  return (
+                    <TimelineStopCard
+                      key={stop.id}
+                      stop={stop}
+                      index={index + 1}
+                      last={isLastStop}
+                      moveModeLabel={getSegmentModeLabel(nextSegment?.mode)}
+                      draggable={currentStops.length > 1 && !isReordering}
+                      dragging={draggingStopId === stop.id}
+                      dropTarget={dropTargetStopId === stop.id}
+                      onDragStart={(dragStop) => {
+                        setDraggingStopId(dragStop.id);
+                        setDropTargetStopId(dragStop.id);
+                      }}
+                      onDragOver={(overStop) => {
+                        if (!draggingStopId || draggingStopId === overStop.id) {
+                          return;
+                        }
+
+                        setDropTargetStopId(overStop.id);
+                      }}
+                      onDrop={handleDropReorder}
+                      onDragEnd={() => {
+                        setDraggingStopId(null);
+                        setDropTargetStopId(null);
+                      }}
+                    />
+                  );
+                })}
               </>
             )}
           </article>
@@ -381,9 +382,23 @@ export function PlannerPage() {
                       : "아직 불러온 일정이 없습니다."}
                 </p>
               </div>
-              {currentTripItem ? (
-                <span className="planner-vault__current-badge">현재 보고 있는 일정</span>
-              ) : null}
+
+              <div className="planner-vault__current-actions">
+                {currentTripItem ? (
+                  <span className="planner-vault__current-badge">현재 보고 있는 일정</span>
+                ) : null}
+                {tripId ? (
+                  <button
+                    type="button"
+                    className="button button--primary"
+                    onClick={handleSaveTrip}
+                    disabled={isSaving}
+                  >
+                    {isSaved ? <Check size={16} /> : <Sparkles size={16} />}
+                    {isSaving ? "저장 중..." : isSaved ? "저장된 일정 업데이트" : "내 일정에 저장"}
+                  </button>
+                ) : null}
+              </div>
             </div>
 
             <button
@@ -423,9 +438,7 @@ export function PlannerPage() {
                               저장됨
                             </span>
                             {isCurrent ? (
-                              <span className="planner-vault__current-badge">
-                                현재 보고 있는 일정
-                              </span>
+                              <span className="planner-vault__current-badge">현재 보고 있는 일정</span>
                             ) : null}
                           </div>
                           <strong>{item.title}</strong>

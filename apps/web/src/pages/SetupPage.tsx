@@ -129,6 +129,16 @@ function createDefaultStopForm(dayNumber = 1): StopFormState {
   };
 }
 
+function normalizeCategoryKeyForCommunity(
+  value: string,
+): "transport" | "cafe" | "activity" | "view" {
+  if (value === "transport" || value === "cafe" || value === "activity" || value === "view") {
+    return value;
+  }
+
+  return "activity";
+}
+
 function createTempId() {
   return `temp-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
 }
@@ -203,8 +213,16 @@ function getPlaceSearchPlaceholder(region: TravelRegion) {
 
 export function SetupPage() {
   const navigate = useNavigate();
-  const [searchParams] = useSearchParams();
+  const [searchParams, setSearchParams] = useSearchParams();
   const editingTripId = searchParams.get("tripId");
+  const communityPlaceId = searchParams.get("communityPlaceId");
+  const communityPlaceName = searchParams.get("communityPlaceName") ?? "";
+  const communityPlaceAddress = searchParams.get("communityPlaceAddress") ?? "";
+  const communityPlaceCategoryKey =
+    (searchParams.get("communityPlaceCategoryKey") as StopFormState["categoryKey"] | null) ??
+    "activity";
+  const communityPlaceLat = searchParams.get("communityPlaceLat");
+  const communityPlaceLng = searchParams.get("communityPlaceLng");
   const [tripForm, setTripForm] = useState<TripFormState>(createDefaultTripForm());
   const [stopForm, setStopForm] = useState<StopFormState>(createDefaultStopForm());
   const [plannedStops, setPlannedStops] = useState<SetupPlannerStop[]>([]);
@@ -219,6 +237,7 @@ export function SetupPage() {
   const [journeyPointSuggestions, setJourneyPointSuggestions] = useState<PlaceSuggestion[]>([]);
   const [searchingJourneyPoints, setSearchingJourneyPoints] = useState(false);
   const [error, setError] = useState("");
+  const [injectedCommunityPlaceId, setInjectedCommunityPlaceId] = useState<string | null>(null);
   const isEditMode = Boolean(editingTripId);
 
   const sortedStops = useMemo(
@@ -292,6 +311,65 @@ export function SetupPage() {
       isMounted = false;
     };
   }, [editingTripId]);
+
+  useEffect(() => {
+    if (
+      editingTripId ||
+      !communityPlaceId ||
+      !communityPlaceName.trim() ||
+      injectedCommunityPlaceId === communityPlaceId
+    ) {
+      return;
+    }
+
+    setPlannedStops((current) => {
+      const injectedId = `community-${communityPlaceId}`;
+
+      if (current.some((stop) => stop.id === injectedId)) {
+        return current;
+      }
+
+      return [
+        ...current,
+        mapStopPreview(
+          {
+            ...createDefaultStopForm(),
+            name: communityPlaceName.trim(),
+            address: communityPlaceAddress,
+            categoryKey: normalizeCategoryKeyForCommunity(communityPlaceCategoryKey),
+            lat: communityPlaceLat ? Number(communityPlaceLat) : null,
+            lng: communityPlaceLng ? Number(communityPlaceLng) : null,
+          },
+          tripForm.transportType,
+          current.length,
+          injectedId,
+        ),
+      ];
+    });
+
+    setInjectedCommunityPlaceId(communityPlaceId);
+    setSearchParams((current) => {
+      const next = new URLSearchParams(current);
+      next.delete("communityPlaceId");
+      next.delete("communityPlaceName");
+      next.delete("communityPlaceAddress");
+      next.delete("communityPlaceCategoryKey");
+      next.delete("communityPlaceLat");
+      next.delete("communityPlaceLng");
+      return next;
+    });
+  }, [
+    communityPlaceAddress,
+    communityPlaceCategoryKey,
+    communityPlaceId,
+    communityPlaceLat,
+    communityPlaceLng,
+    communityPlaceName,
+    editingTripId,
+    injectedCommunityPlaceId,
+    setSearchParams,
+    tripForm.transportType,
+  ]);
 
   useEffect(() => {
     let isMounted = true;

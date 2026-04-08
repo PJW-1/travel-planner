@@ -1,48 +1,77 @@
-import { GitFork, Heart, MessageSquare } from "lucide-react";
-import type { MarketRoute } from "@travel/shared";
+import { CalendarDays, GitFork, Heart, MapPin, MessageSquare } from "lucide-react";
+import type { CommunityRouteSummary } from "@/lib/contentApi";
 
 type RouteMarketCardProps = {
-  route: MarketRoute;
+  route: CommunityRouteSummary;
+  selected?: boolean;
+  onSelect?: (routeId: string) => void;
 };
 
-const emojiMap: Record<MarketRoute["theme"], string> = {
-  urban: "🏙️",
-  cafe: "☕",
-  walking: "🚶",
-  coast: "🌊",
+const emojiMap: Record<CommunityRouteSummary["theme"], string> = {
+  urban: "City",
+  cafe: "Cafe",
+  walking: "Walk",
+  coast: "Coast",
 };
 
-export function RouteMarketCard({ route }: RouteMarketCardProps) {
+export function RouteMarketCard({
+  route,
+  selected = false,
+  onSelect,
+}: RouteMarketCardProps) {
   return (
-    <article className={`route-card route-card--${route.theme}`}>
-      <div className="route-card__hero">
+    <button
+      type="button"
+      className={`community-feed-card community-feed-card--${route.theme} ${
+        selected ? "community-feed-card--selected" : ""
+      }`}
+      onClick={() => onSelect?.(route.id)}
+    >
+      <div className="community-feed-card__hero">
         <span>{emojiMap[route.theme]}</span>
       </div>
-      <div className="route-card__content">
-        <div className="route-card__tags">
+
+      <div className="community-feed-card__content">
+        <div className="community-feed-card__tags">
           {route.tags.map((tag) => (
             <span key={tag} className="tag-pill">
               #{tag}
             </span>
           ))}
         </div>
+
         <h3>{route.title}</h3>
-        <p className="route-card__author">{route.author} 님의 루트</p>
-        <div className="route-card__meta">
+        <p className="community-feed-card__description">{route.description}</p>
+
+        <div className="community-feed-card__meta">
           <span>
-            <Heart size={14} />
-            {route.likes}
+            <MapPin size={14} />
+            {route.destination}
           </span>
           <span>
-            <MessageSquare size={14} />
-            {route.comments}
+            <CalendarDays size={14} />
+            {route.dateRange}
           </span>
-          <button>
-            루트 가져오기
-            <GitFork size={14} />
-          </button>
+        </div>
+
+        <div className="community-feed-card__footer">
+          <strong>{route.author}</strong>
+          <div className="community-feed-card__stats">
+            <span className={route.likedByMe ? "is-active" : ""}>
+              <Heart size={14} />
+              {route.likes}
+            </span>
+            <span>
+              <MessageSquare size={14} />
+              {route.comments}
+            </span>
+            <span>
+              <GitFork size={14} />
+              {route.forkCount}
+            </span>
+          </div>
         </div>
       </div>
-    </article>
+    </button>
   );
 }

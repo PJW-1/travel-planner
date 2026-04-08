@@ -18,7 +18,11 @@ async function parseJson<T>(response: Response): Promise<T> {
   return data as T;
 }
 
-export async function login(payload: { email: string; password: string }) {
+export async function login(payload: {
+  email: string;
+  password: string;
+  rememberMe?: boolean;
+}) {
   const response = await fetch(`${API_BASE_URL}/auth/login`, {
     method: "POST",
     headers: {
@@ -76,6 +80,31 @@ export async function fetchMe() {
       provider: string;
       status: string;
       createdAt: string;
+      lastLoginAt: string | null;
+    };
+  }>(response);
+}
+
+export async function updateProfile(payload: { nickname: string }) {
+  const response = await fetch(`${API_BASE_URL}/auth/profile`, {
+    method: "PATCH",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    credentials: "include",
+    body: JSON.stringify(payload),
+  });
+
+  return parseJson<{
+    message: string;
+    user: {
+      userId: number;
+      email: string;
+      nickname: string;
+      provider: string;
+      status: string;
+      createdAt: string;
+      lastLoginAt: string | null;
     };
   }>(response);
 }

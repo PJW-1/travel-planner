@@ -1,21 +1,25 @@
-import { MapPin } from "lucide-react";
+import { MapPin, Navigation } from "lucide-react";
 
 type JourneyAnchorCardProps = {
   title: string;
   address?: string;
-  index?: number;
+  index?: number | string;
   showConnector?: boolean;
+  moveModeLabel?: string | null;
+  moveMinutes?: number;
 };
 
 export function JourneyAnchorCard({
   title,
   address = "",
-  index = 0,
+  index = "S",
   showConnector = false,
+  moveModeLabel = null,
+  moveMinutes = 0,
 }: JourneyAnchorCardProps) {
   return (
     <div className="timeline-stop">
-      <div className="timeline-stop__index timeline-stop__index--anchor">{index + 1}</div>
+      <div className="timeline-stop__index timeline-stop__index--anchor">{index}</div>
       {showConnector ? <div className="timeline-stop__line" /> : null}
 
       <article className="timeline-stop__card timeline-stop__card--anchor">
@@ -35,6 +39,14 @@ export function JourneyAnchorCard({
           </span>
         </div>
       </article>
+
+      {showConnector ? (
+        <div className="timeline-stop__move">
+          <Navigation size={12} />
+          {moveModeLabel ? `${moveModeLabel} · ` : ""}
+          이동 {moveMinutes}분
+        </div>
+      ) : null}
     </div>
   );
 }

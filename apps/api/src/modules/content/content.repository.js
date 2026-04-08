@@ -1,4 +1,5 @@
 import { getDbPool } from "../../database/mysql.js";
+import { getSavedAiPlaces } from "../ai-lab/aiLab.repository.js";
 
 function parseJsonValue(value, fallback) {
   if (!value) {
@@ -274,6 +275,44 @@ export async function getMySummary(userId) {
     `,
     [userId],
   );
+  const savedAiPlaces = await getSavedAiPlaces(userId);
+  const [favoriteRows] = await db.execute(
+    `
+      SELECT
+        f.id,
+        p.id AS place_id,
+        p.name,
+        p.category_key,
+        p.address,
+        p.lat,
+        p.lng,
+        p.region,
+        f.created_at
+      FROM favorites f
+      INNER JOIN places p ON p.id = f.place_id
+      WHERE f.user_id = ?
+      ORDER BY f.created_at DESC, f.id DESC
+      LIMIT 12
+    `,
+    [userId],
+  );
+
+  const savedPlaces = [
+    ...savedAiPlaces,
+    ...favoriteRows.map((row) => ({
+      id: `favorite-${row.id}`,
+      placeId: String(row.place_id),
+      title: row.name,
+      categoryKey: mapCategoryKey(row.category_key),
+      address: row.address ?? "",
+      lat: Number(row.lat),
+      lng: Number(row.lng),
+      region: row.region ?? "",
+      sourceTitle: "커뮤니티 저장 장소",
+      youtubeUrl: "",
+      date: row.created_at,
+    })),
+  ].sort((left, right) => new Date(right.date).getTime() - new Date(left.date).getTime());
 
   return {
     savedPlans: rows.map((row) => {
@@ -287,5 +326,6 @@ export async function getMySummary(userId) {
         emoji: row.cover_image_url ?? "🧳",
       };
     }),
+    savedAiPlaces: savedPlaces,
   };
 }

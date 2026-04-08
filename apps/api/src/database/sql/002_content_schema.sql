@@ -148,6 +148,22 @@ CREATE TABLE IF NOT EXISTS community_routes (
     ON DELETE CASCADE
 );
 
+CREATE TABLE IF NOT EXISTS community_route_likes (
+  id BIGINT UNSIGNED NOT NULL,
+  community_route_id BIGINT UNSIGNED NOT NULL,
+  user_id BIGINT UNSIGNED NOT NULL,
+  created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (id),
+  UNIQUE KEY uq_community_route_likes_route_user (community_route_id, user_id),
+  KEY idx_community_route_likes_user_id (user_id),
+  CONSTRAINT fk_community_route_likes_route_id
+    FOREIGN KEY (community_route_id) REFERENCES community_routes (id)
+    ON DELETE CASCADE,
+  CONSTRAINT fk_community_route_likes_user_id
+    FOREIGN KEY (user_id) REFERENCES users (id)
+    ON DELETE CASCADE
+);
+
 CREATE TABLE IF NOT EXISTS route_tags (
   id BIGINT UNSIGNED NOT NULL,
   community_route_id BIGINT UNSIGNED NOT NULL,
@@ -204,6 +220,7 @@ CREATE TABLE IF NOT EXISTS video_extracted_places (
   confidence_score DECIMAL(4, 2) NOT NULL DEFAULT 0,
   matched_lat DECIMAL(10, 7) NOT NULL,
   matched_lng DECIMAL(10, 7) NOT NULL,
+  is_saved BOOLEAN NOT NULL DEFAULT FALSE,
   created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
   PRIMARY KEY (id),
   KEY idx_video_extracted_places_video_extraction_id (video_extraction_id),

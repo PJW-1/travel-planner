@@ -33,6 +33,12 @@ export const env = {
     store: process.env.SESSION_STORE ?? "memory",
     cookieName: process.env.SESSION_COOKIE_NAME ?? "tm_session",
     ttlSeconds: Number(process.env.SESSION_TTL_SECONDS ?? 60 * 60 * 24 * 7),
+    defaultTtlSeconds: Number(
+      process.env.SESSION_DEFAULT_TTL_SECONDS ??
+        process.env.SESSION_TTL_SECONDS ??
+        60 * 60 * 24 * 7,
+    ),
+    rememberTtlSeconds: Number(process.env.SESSION_REMEMBER_TTL_SECONDS ?? 60 * 60 * 24 * 30),
   },
   redis: {
     url: process.env.REDIS_URL ?? "redis://127.0.0.1:6379",
@@ -42,5 +48,9 @@ export const env = {
   },
   kakao: {
     restApiKey: process.env.KAKAO_REST_API_KEY ?? "",
+  },
+  gemini: {
+    apiKey: process.env.GEMINI_API_KEY ?? "",
+    model: process.env.GEMINI_MODEL ?? "gemini-2.5-flash",
   },
 };

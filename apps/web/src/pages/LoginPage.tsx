@@ -7,6 +7,7 @@ export function LoginPage() {
   const navigate = useNavigate();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [rememberMe, setRememberMe] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
   const [successMessage, setSuccessMessage] = useState("");
@@ -18,7 +19,7 @@ export function LoginPage() {
     setIsSubmitting(true);
 
     try {
-      await login({ email, password });
+      await login({ email, password, rememberMe });
       window.dispatchEvent(new Event("auth-changed"));
       setSuccessMessage("로그인되었습니다. 홈으로 이동합니다.");
 
@@ -38,7 +39,7 @@ export function LoginPage() {
         <div className="login-form-card__header">
           <p className="eyebrow">계정 접속</p>
           <h2>이메일로 로그인</h2>
-          <p>저장한 일정과 찜한 장소, 포크한 루트를 계정에서 이어서 관리할 수 있습니다.</p>
+          <p>저장한 일정과 장소, 포크한 루트를 계정에서 이어서 관리할 수 있습니다.</p>
         </div>
 
         <form className="login-form" onSubmit={handleSubmit}>
@@ -62,7 +63,7 @@ export function LoginPage() {
               <LockKeyhole size={18} />
               <input
                 type="password"
-                placeholder="비밀번호를 입력하세요"
+                placeholder="비밀번호를 입력해주세요"
                 value={password}
                 onChange={(event) => setPassword(event.target.value)}
                 autoComplete="current-password"
@@ -72,7 +73,11 @@ export function LoginPage() {
 
           <div className="login-form__meta">
             <label className="checkbox-row">
-              <input type="checkbox" />
+              <input
+                type="checkbox"
+                checked={rememberMe}
+                onChange={(event) => setRememberMe(event.target.checked)}
+              />
               <span>로그인 상태 유지</span>
             </label>
             <button type="button" className="text-link-button">

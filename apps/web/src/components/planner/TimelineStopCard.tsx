@@ -3,8 +3,9 @@ import type { PlannerStop } from "@travel/shared";
 
 type TimelineStopCardProps = {
   stop: PlannerStop;
-  index: number;
+  index: number | string;
   last: boolean;
+  moveModeLabel?: string | null;
   onEdit?: (stop: PlannerStop) => void;
   onDelete?: (stop: PlannerStop) => void;
   editing?: boolean;
@@ -21,6 +22,7 @@ export function TimelineStopCard({
   stop,
   index,
   last,
+  moveModeLabel = null,
   onEdit,
   onDelete,
   editing = false,
@@ -34,7 +36,7 @@ export function TimelineStopCard({
 }: TimelineStopCardProps) {
   return (
     <div className="timeline-stop">
-      <div className="timeline-stop__index">{index + 1}</div>
+      <div className="timeline-stop__index">{index}</div>
       {!last ? <div className="timeline-stop__line" /> : null}
       <article
         className={[
@@ -77,7 +79,7 @@ export function TimelineStopCard({
           <span>혼잡도 {stop.congestion}%</span>
           <span>체류 {stop.stayMinutes}분</span>
           {stop.distanceKm ? <span>이동 {stop.distanceKm.toFixed(1)}km</span> : null}
-          {stop.forked ? <span className="status-chip">포크됨</span> : null}
+          {stop.forked ? <span className="status-chip">포크</span> : null}
         </div>
 
         {onEdit || onDelete ? (
@@ -101,6 +103,7 @@ export function TimelineStopCard({
       {!last ? (
         <div className="timeline-stop__move">
           <Navigation size={12} />
+          {moveModeLabel ? `${moveModeLabel} · ` : ""}
           이동 {stop.travelMinutes}분
         </div>
       ) : null}
