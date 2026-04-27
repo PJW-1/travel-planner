@@ -1,4 +1,4 @@
-import type { PlannerStop, TravelRegion } from "@travel/shared";
+import type { PlaceProvider, PlannerStop, TravelRegion } from "@travel/shared";
 import { API_BASE_URL } from "./authApi";
 
 type PlannerInsight = {
@@ -94,6 +94,12 @@ export type TripStopPayload = {
   address?: string;
   lat?: number | null;
   lng?: number | null;
+  provider?: PlaceProvider;
+  providerPlaceId?: string;
+  phone?: string;
+  websiteUrl?: string;
+  providerUrl?: string;
+  openingHours?: string[];
   time: string;
   stayMinutes: number;
   travelMinutes: number;

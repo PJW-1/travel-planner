@@ -22,10 +22,15 @@ function normalizePlaceItem(item: any) {
   const address = item.road_address_name || item.address_name || "";
   const details = {
     placeId,
+    provider: "kakao",
+    providerPlaceId: placeId,
     name: item.place_name ?? "",
     address,
     lat: Number(item.y),
     lng: Number(item.x),
+    phone: item.phone || undefined,
+    providerUrl: item.place_url || undefined,
+    rawPayload: item ?? null,
   } satisfies PlaceDetails;
 
   placeDetailsCache.set(placeId, details);

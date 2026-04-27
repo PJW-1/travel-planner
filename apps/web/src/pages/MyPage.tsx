@@ -3,6 +3,7 @@ import { Bookmark, Heart, LogOut, PencilLine, Plus, Trash2, UserRound } from "lu
 import type { SavedPlan } from "@travel/shared";
 import { Link, useNavigate } from "react-router-dom";
 import { PageHeader } from "@/components/PageHeader";
+import { PlaceDetailSheet } from "@/components/places/PlaceDetailSheet";
 import { fetchMe, logout, updateProfile } from "@/lib/authApi";
 import { fetchMySummary, type SavedAiPlace } from "@/lib/contentApi";
 import { deleteTrip } from "@/lib/tripsApi";
@@ -25,9 +26,10 @@ export function MyPage() {
   const [errorMessage, setErrorMessage] = useState("");
   const [successMessage, setSuccessMessage] = useState("");
   const [savedPlans, setSavedPlans] = useState<SavedPlan[]>([]);
-  const [savedAiPlaces, setSavedAiPlaces] = useState<SavedAiPlace[]>([]);
+  const [savedPlaces, setSavedPlaces] = useState<SavedAiPlace[]>([]);
   const [profile, setProfile] = useState<ProfileState | null>(null);
   const [nickname, setNickname] = useState("");
+  const [selectedPlaceId, setSelectedPlaceId] = useState<string | null>(null);
 
   useEffect(() => {
     let isMounted = true;
@@ -36,17 +38,21 @@ export function MyPage() {
       try {
         const [summary, me] = await Promise.all([fetchMySummary(), fetchMe()]);
 
-        if (isMounted) {
-          setSavedPlans(summary.savedPlans);
-          setSavedAiPlaces(summary.savedAiPlaces);
-          setProfile(me.user);
-          setNickname(me.user.nickname);
+        if (!isMounted) {
+          return;
         }
+
+        setSavedPlans(summary.savedPlans);
+        setSavedPlaces(summary.savedAiPlaces);
+        setProfile(me.user);
+        setNickname(me.user.nickname);
       } catch {
-        if (isMounted) {
-          setSavedPlans([]);
-          setSavedAiPlaces([]);
+        if (!isMounted) {
+          return;
         }
+
+        setSavedPlans([]);
+        setSavedPlaces([]);
       }
     }
 
@@ -77,7 +83,7 @@ export function MyPage() {
 
   async function handleSaveProfile() {
     if (!nickname.trim()) {
-      setErrorMessage("닉네임을 입력해주세요.");
+      setErrorMessage("닉네임을 입력해 주세요.");
       return;
     }
 
@@ -144,8 +150,8 @@ export function MyPage() {
     <div className="single-column-page">
       <PageHeader
         eyebrow="마이페이지"
-        title="내 여행 보관함과 프로필을 한곳에서 관리해보세요"
-        description="저장한 일정과 장소를 모아두고, 프로필 정보도 간단하게 수정할 수 있습니다."
+        title="내 여행 기록과 저장한 장소를 한곳에서 관리해 보세요"
+        description="저장한 일정과 장소를 다시 꺼내 쓰고, 프로필도 간단하게 수정할 수 있습니다."
         actions={
           <button
             type="button"
@@ -160,7 +166,9 @@ export function MyPage() {
       />
 
       {errorMessage ? <p className="form-feedback form-feedback--error">{errorMessage}</p> : null}
-      {successMessage ? <p className="form-feedback form-feedback--success">{successMessage}</p> : null}
+      {successMessage ? (
+        <p className="form-feedback form-feedback--success">{successMessage}</p>
+      ) : null}
 
       <div className="two-column-layout two-column-layout--profile">
         <section className="panel panel--muted">
@@ -178,18 +186,13 @@ export function MyPage() {
                 type="text"
                 value={nickname}
                 onChange={(event) => setNickname(event.target.value)}
-                placeholder="닉네임을 입력해주세요"
+                placeholder="닉네임을 입력해 주세요"
               />
             </label>
 
             <div className="profile-field profile-field--readonly">
               <span>이메일</span>
               <strong>{profile?.email ?? "-"}</strong>
-            </div>
-
-            <div className="profile-field profile-field--readonly">
-              <span>로그인 방식</span>
-              <strong>{profile?.provider ?? "-"}</strong>
             </div>
 
             <div className="profile-field profile-field--readonly">
@@ -229,7 +232,7 @@ export function MyPage() {
                   <div className="saved-plan__body">
                     <h3>{plan.title}</h3>
                     <p>
-                      {plan.date} | {plan.placeCount}개 장소
+                      {plan.date} | 장소 {plan.placeCount}개
                     </p>
                   </div>
                   <div className="saved-plan__actions">
@@ -251,7 +254,7 @@ export function MyPage() {
             </div>
           ) : (
             <div className="empty-state">
-              <p>아직 저장된 일정이 없습니다. 플래너 결과를 저장해 여행 보관함을 채워보세요.</p>
+              <p>아직 저장된 일정이 없습니다. 플래너에서 결과를 저장해 보세요.</p>
               <Link to="/setup" className="button button--secondary">
                 새 일정 만들기
               </Link>
@@ -268,9 +271,9 @@ export function MyPage() {
           </div>
         </div>
 
-        {savedAiPlaces.length > 0 ? (
+        {savedPlaces.length > 0 ? (
           <div className="saved-plan-list">
-            {savedAiPlaces.map((place) => (
+            {savedPlaces.map((place) => (
               <article key={place.id} className="saved-plan">
                 <div className="saved-plan__emoji">S</div>
                 <div className="saved-plan__body">
@@ -279,6 +282,17 @@ export function MyPage() {
                   <small className="saved-plan__meta">{place.sourceTitle}</small>
                 </div>
                 <div className="saved-plan__actions">
+                  <button
+                    type="button"
+                    className="button button--ghost"
+                    onClick={() => {
+                      if (place.placeId) {
+                        setSelectedPlaceId(place.placeId);
+                      }
+                    }}
+                  >
+                    상세 보기
+                  </button>
                   <button
                     type="button"
                     className="button button--secondary"
@@ -293,13 +307,19 @@ export function MyPage() {
           </div>
         ) : (
           <div className="empty-state">
-            <p>아직 저장한 장소가 없습니다. AI 랩이나 커뮤니티에서 마음에 드는 장소를 저장해보세요.</p>
+            <p>아직 저장한 장소가 없습니다. AI 랩이나 커뮤니티에서 장소를 담아보세요.</p>
             <Link to="/ai-lab" className="button button--secondary">
               AI 랩 가기
             </Link>
           </div>
         )}
       </section>
+
+      <PlaceDetailSheet
+        placeId={selectedPlaceId}
+        open={Boolean(selectedPlaceId)}
+        onClose={() => setSelectedPlaceId(null)}
+      />
     </div>
   );
 }

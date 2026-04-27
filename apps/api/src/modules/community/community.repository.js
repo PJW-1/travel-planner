@@ -1,5 +1,21 @@
 import { getDbPool } from "../../database/mysql.js";
 
+function parseJsonValue(value, fallback) {
+  if (!value) {
+    return fallback;
+  }
+
+  if (typeof value === "object") {
+    return value;
+  }
+
+  try {
+    return JSON.parse(value);
+  } catch {
+    return fallback;
+  }
+}
+
 function createId() {
   const suffix = Math.floor(Math.random() * 1000)
     .toString()
@@ -53,7 +69,8 @@ export async function listCommunityRoutes(userId = null) {
         t.destination,
         t.start_date,
         t.end_date,
-        t.days
+        t.days,
+        t.theme_json
       FROM community_routes cr
       INNER JOIN users u ON u.id = cr.author_user_id
       INNER JOIN trips t ON t.id = cr.trip_id
@@ -97,23 +114,28 @@ export async function listCommunityRoutes(userId = null) {
     }
   }
 
-  return routeRows.map((row) => ({
-    id: String(row.id),
-    tripId: String(row.trip_id),
-    title: row.title,
-    description: row.description ?? "",
-    author: row.author,
-    likes: Number(row.like_count ?? 0),
-    comments: Number(row.comment_count ?? 0),
-    forkCount: Number(row.fork_count ?? 0),
-    theme: mapCommunityTheme(row.theme),
-    tags: tagsByRouteId.get(row.id) ?? [],
-    destination: row.destination,
-    days: Number(row.days ?? 1),
-    dateRange: formatDateRange(row.start_date, row.end_date),
-    publishedAt: row.published_at,
-    likedByMe: likedRouteIds.has(String(row.id)),
-  }));
+  return routeRows.map((row) => {
+    const theme = parseJsonValue(row.theme_json, {});
+
+    return {
+      id: String(row.id),
+      tripId: String(row.trip_id),
+      title: row.title,
+      description: row.description ?? "",
+      author: row.author,
+      likes: Number(row.like_count ?? 0),
+      comments: Number(row.comment_count ?? 0),
+      forkCount: Number(row.fork_count ?? 0),
+      theme: mapCommunityTheme(row.theme),
+      tags: tagsByRouteId.get(row.id) ?? [],
+      destination: row.destination,
+      days: Number(row.days ?? 1),
+      dateRange: formatDateRange(row.start_date, row.end_date),
+      publishedAt: row.published_at,
+      likedByMe: likedRouteIds.has(String(row.id)),
+      travelRegion: theme.travelRegion ?? "korea",
+    };
+  });
 }
 
 export async function getCommunityRouteDetail(routeId, userId = null) {
@@ -134,7 +156,8 @@ export async function getCommunityRouteDetail(routeId, userId = null) {
         t.destination,
         t.start_date,
         t.end_date,
-        t.days
+        t.days,
+        t.theme_json
       FROM community_routes cr
       INNER JOIN users u ON u.id = cr.author_user_id
       INNER JOIN trips t ON t.id = cr.trip_id
@@ -257,6 +280,8 @@ export async function getCommunityRouteDetail(routeId, userId = null) {
       })),
   }));
 
+  const theme = parseJsonValue(route.theme_json, {});
+
   return {
     id: String(route.id),
     tripId: String(route.trip_id),
@@ -274,6 +299,7 @@ export async function getCommunityRouteDetail(routeId, userId = null) {
     publishedAt: route.published_at,
     likedByMe: likedRouteIds.has(String(route.id)),
     days,
+    travelRegion: theme.travelRegion ?? "korea",
   };
 }
 

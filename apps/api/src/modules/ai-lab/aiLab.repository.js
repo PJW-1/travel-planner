@@ -31,7 +31,21 @@ async function getNextId(connection, tableName) {
 async function findExistingPlace(connection, name, address) {
   const [rows] = await connection.execute(
     `
-      SELECT id, name, address, lat, lng, category, category_key, region
+      SELECT
+        id,
+        name,
+        address,
+        lat,
+        lng,
+        category,
+        category_key,
+        region,
+        provider,
+        provider_place_id,
+        phone,
+        website_url,
+        provider_url,
+        opening_hours_json
       FROM places
       WHERE name = ? AND (address <=> ?)
       LIMIT 1
@@ -56,10 +70,18 @@ async function createPlace(connection, place) {
         lat,
         lng,
         region,
+        provider,
+        provider_place_id,
+        phone,
+        website_url,
+        provider_url,
+        opening_hours_json,
+        raw_payload_json,
+        last_synced_at,
         source_type,
         thumbnail_url
       )
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'ai-lab', NULL)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), 'ai-lab', NULL)
     `,
     [
       nextId,
@@ -70,6 +92,13 @@ async function createPlace(connection, place) {
       place.lat,
       place.lng,
       place.region ?? "기타",
+      place.provider ?? "internal",
+      place.providerPlaceId ?? null,
+      place.phone ?? null,
+      place.websiteUrl ?? null,
+      place.providerUrl ?? null,
+      place.openingHours ? JSON.stringify(place.openingHours) : null,
+      place.rawPayload ? JSON.stringify(place.rawPayload) : null,
     ],
   );
 
@@ -155,6 +184,13 @@ export async function saveExtractedPlaces(extractionId, places) {
         region: place.region,
         category: place.category,
         categoryKey: place.categoryKey,
+        provider: place.provider,
+        providerPlaceId: place.providerPlaceId,
+        phone: place.phone,
+        websiteUrl: place.websiteUrl,
+        providerUrl: place.providerUrl,
+        openingHours: place.openingHours,
+        rawPayload: place.rawPayload,
       });
 
       const extractionPlaceId = await getNextId(connection, "video_extracted_places");

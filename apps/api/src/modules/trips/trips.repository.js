@@ -114,6 +114,14 @@ function normalizeTransportType(value) {
   return value.trim().slice(0, 40);
 }
 
+function normalizePlaceProvider(value) {
+  if (value === "kakao" || value === "google" || value === "internal") {
+    return value;
+  }
+
+  return "internal";
+}
+
 function normalizeTravelRegion(value) {
   const allowed = new Set([
     "korea",
@@ -212,12 +220,19 @@ function mapTripListItem(row) {
 function mapStop(row) {
   return {
     id: String(row.id),
+    placeId: String(row.place_id),
     name: row.name,
     category: row.category_label,
     categoryKey: row.category_key,
     address: row.address ?? "",
     lat: row.lat === null ? undefined : Number(row.lat),
     lng: row.lng === null ? undefined : Number(row.lng),
+    provider: normalizePlaceProvider(row.provider),
+    providerPlaceId: row.provider_place_id ?? undefined,
+    phone: row.phone ?? undefined,
+    websiteUrl: row.website_url ?? undefined,
+    providerUrl: row.provider_url ?? undefined,
+    openingHours: parseJsonValue(row.opening_hours_json, []),
     time: String(row.arrival_time).slice(0, 5),
     congestion: row.congestion_score,
     stayMinutes: row.stay_minutes,
@@ -542,7 +557,13 @@ export async function getTripDetail(userId, tripId, dayNumberInput = 1) {
         ts.is_forked,
         p.address,
         p.lat,
-        p.lng
+        p.lng,
+        p.provider,
+        p.provider_place_id,
+        p.phone,
+        p.website_url,
+        p.provider_url,
+        p.opening_hours_json
       FROM trip_stops ts
       INNER JOIN trip_days td ON td.id = ts.trip_day_id
       INNER JOIN places p ON p.id = ts.place_id
@@ -833,6 +854,32 @@ export async function createTripStop(userId, tripId, payload) {
     const categoryKey = normalizeCategoryKey(payload.categoryKey);
     const categoryLabel = CATEGORY_LABELS[categoryKey];
     const address = typeof payload.address === "string" ? payload.address.trim().slice(0, 255) : null;
+    const provider = normalizePlaceProvider(payload.provider);
+    const providerPlaceId =
+      typeof payload.providerPlaceId === "string" && payload.providerPlaceId.trim()
+        ? payload.providerPlaceId.trim().slice(0, 160)
+        : null;
+    const phone =
+      typeof payload.phone === "string" && payload.phone.trim()
+        ? payload.phone.trim().slice(0, 60)
+        : null;
+    const websiteUrl =
+      typeof payload.websiteUrl === "string" && payload.websiteUrl.trim()
+        ? payload.websiteUrl.trim().slice(0, 255)
+        : null;
+    const providerUrl =
+      typeof payload.providerUrl === "string" && payload.providerUrl.trim()
+        ? payload.providerUrl.trim().slice(0, 255)
+        : null;
+    const openingHoursJson =
+      Array.isArray(payload.openingHours) && payload.openingHours.length > 0
+        ? JSON.stringify(
+            payload.openingHours
+              .map((item) => String(item).trim())
+              .filter(Boolean)
+              .slice(0, 14),
+          )
+        : null;
     const lat =
       payload.lat === null || payload.lat === undefined
         ? 0
@@ -862,11 +909,43 @@ export async function createTripStop(userId, tripId, payload) {
     await connection.execute(
       `
         INSERT INTO places (
-          id, name, category, category_key, address, lat, lng, region, source_type, thumbnail_url
+          id,
+          name,
+          category,
+          category_key,
+          address,
+          lat,
+          lng,
+          region,
+          provider,
+          provider_place_id,
+          phone,
+          website_url,
+          provider_url,
+          opening_hours_json,
+          raw_payload_json,
+          last_synced_at,
+          source_type,
+          thumbnail_url
         )
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'user', NULL)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NULL, NOW(), 'user', NULL)
       `,
-      [placeId, name, categoryLabel, categoryKey, address, lat, lng, trip.destination],
+      [
+        placeId,
+        name,
+        categoryLabel,
+        categoryKey,
+        address,
+        lat,
+        lng,
+        trip.destination,
+        provider,
+        providerPlaceId,
+        phone,
+        websiteUrl,
+        providerUrl,
+        openingHoursJson,
+      ],
     );
 
     await connection.execute(
@@ -969,7 +1048,13 @@ export async function updateTripStop(userId, tripId, stopId, payload) {
           p.name,
           p.address,
           p.lat,
-          p.lng
+          p.lng,
+          p.provider,
+          p.provider_place_id,
+          p.phone,
+          p.website_url,
+          p.provider_url,
+          p.opening_hours_json
         FROM trip_stops ts
         INNER JOIN trip_days td ON td.id = ts.trip_day_id
         INNER JOIN places p ON p.id = ts.place_id
@@ -1003,6 +1088,32 @@ export async function updateTripStop(userId, tripId, stopId, payload) {
       typeof payload.address === "string"
         ? payload.address.trim().slice(0, 255)
         : (stop.address ?? null);
+    const provider = normalizePlaceProvider(payload.provider ?? stop.provider);
+    const providerPlaceId =
+      typeof payload.providerPlaceId === "string"
+        ? payload.providerPlaceId.trim().slice(0, 160) || null
+        : (stop.provider_place_id ?? null);
+    const phone =
+      typeof payload.phone === "string"
+        ? payload.phone.trim().slice(0, 60) || null
+        : (stop.phone ?? null);
+    const websiteUrl =
+      typeof payload.websiteUrl === "string"
+        ? payload.websiteUrl.trim().slice(0, 255) || null
+        : (stop.website_url ?? null);
+    const providerUrl =
+      typeof payload.providerUrl === "string"
+        ? payload.providerUrl.trim().slice(0, 255) || null
+        : (stop.provider_url ?? null);
+    const openingHoursJson =
+      Array.isArray(payload.openingHours)
+        ? JSON.stringify(
+            payload.openingHours
+              .map((item) => String(item).trim())
+              .filter(Boolean)
+              .slice(0, 14),
+          )
+        : (stop.opening_hours_json ?? null);
     const lat =
       payload.lat === null || payload.lat === undefined
         ? Number(stop.lat ?? 0)
@@ -1039,10 +1150,39 @@ export async function updateTripStop(userId, tripId, stopId, payload) {
     await connection.execute(
       `
         UPDATE places
-        SET name = ?, category = ?, category_key = ?, address = ?, lat = ?, lng = ?, region = ?
+        SET
+          name = ?,
+          category = ?,
+          category_key = ?,
+          address = ?,
+          lat = ?,
+          lng = ?,
+          region = ?,
+          provider = ?,
+          provider_place_id = ?,
+          phone = ?,
+          website_url = ?,
+          provider_url = ?,
+          opening_hours_json = ?,
+          last_synced_at = NOW()
         WHERE id = ?
       `,
-      [name, categoryLabel, categoryKey, address, lat, lng, trip.destination, stop.place_id],
+      [
+        name,
+        categoryLabel,
+        categoryKey,
+        address,
+        lat,
+        lng,
+        trip.destination,
+        provider,
+        providerPlaceId,
+        phone,
+        websiteUrl,
+        providerUrl,
+        openingHoursJson,
+        stop.place_id,
+      ],
     );
 
     await connection.execute(

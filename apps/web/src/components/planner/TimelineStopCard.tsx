@@ -8,6 +8,7 @@ type TimelineStopCardProps = {
   moveModeLabel?: string | null;
   onEdit?: (stop: PlannerStop) => void;
   onDelete?: (stop: PlannerStop) => void;
+  onOpenDetail?: (stop: PlannerStop) => void;
   editing?: boolean;
   draggable?: boolean;
   dragging?: boolean;
@@ -25,6 +26,7 @@ export function TimelineStopCard({
   moveModeLabel = null,
   onEdit,
   onDelete,
+  onOpenDetail,
   editing = false,
   draggable = false,
   dragging = false,
@@ -71,7 +73,21 @@ export function TimelineStopCard({
             <h3>{stop.name}</h3>
             <p>{stop.category}</p>
           </div>
-          <span>{stop.time}</span>
+          <div className="timeline-stop__header-actions">
+            {onOpenDetail ? (
+              <button
+                type="button"
+                className="timeline-stop__ghost"
+                onClick={(event) => {
+                  event.stopPropagation();
+                  onOpenDetail(stop);
+                }}
+              >
+                상세 보기
+              </button>
+            ) : null}
+            <span>{stop.time}</span>
+          </div>
         </div>
 
         <div className="timeline-stop__details">

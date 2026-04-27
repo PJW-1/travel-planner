@@ -1,10 +1,12 @@
 import { useEffect, useMemo, useState } from "react";
 import { ArrowRight, MapPin, Plus, Search } from "lucide-react";
-import type { PlannerStop, TravelRegion } from "@travel/shared";
+import type { PlaceProvider, PlannerStop, TravelRegion } from "@travel/shared";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { PageHeader } from "@/components/PageHeader";
+import { PlaceDetailSheet } from "@/components/places/PlaceDetailSheet";
 import { JourneyAnchorCard } from "@/components/planner/JourneyAnchorCard";
 import { TimelineStopCard } from "@/components/planner/TimelineStopCard";
+import type { PlaceDetail } from "@/lib/placesApi";
 import {
   fetchPlaceDetailsByRegion,
   fetchPlaceSuggestionsByRegion,
@@ -34,6 +36,7 @@ type TripFormState = {
 };
 
 type StopFormState = {
+  placeId: string;
   name: string;
   categoryKey: "transport" | "cafe" | "activity" | "view";
   visitTimeMode: "auto" | "manual";
@@ -44,6 +47,12 @@ type StopFormState = {
   address: string;
   lat: number | null;
   lng: number | null;
+  provider: PlaceProvider | null;
+  providerPlaceId: string;
+  phone: string;
+  websiteUrl: string;
+  providerUrl: string;
+  openingHours: string[];
 };
 
 type SetupPlannerStop = PlannerStop & {
@@ -116,6 +125,7 @@ function createDefaultTripForm(): TripFormState {
 
 function createDefaultStopForm(dayNumber = 1): StopFormState {
   return {
+    placeId: "",
     name: "",
     categoryKey: "activity",
     visitTimeMode: "auto",
@@ -126,6 +136,12 @@ function createDefaultStopForm(dayNumber = 1): StopFormState {
     address: "",
     lat: null,
     lng: null,
+    provider: null,
+    providerPlaceId: "",
+    phone: "",
+    websiteUrl: "",
+    providerUrl: "",
+    openingHours: [],
   };
 }
 
@@ -155,6 +171,48 @@ function deriveTripDestination(
   );
 }
 
+function createLocalPlaceDetailFromForm(form: StopFormState): PlaceDetail {
+  return {
+    id: form.placeId || form.providerPlaceId,
+    name: form.name,
+    category: CATEGORY_LABELS[form.categoryKey],
+    categoryKey: form.categoryKey,
+    address: form.address,
+    lat: form.lat ?? 0,
+    lng: form.lng ?? 0,
+    region: "",
+    provider: form.provider ?? "internal",
+    providerPlaceId: form.providerPlaceId,
+    phone: form.phone,
+    websiteUrl: form.websiteUrl,
+    providerUrl: form.providerUrl,
+    openingHours: form.openingHours,
+    sourceType: "search",
+    lastSyncedAt: null,
+  };
+}
+
+function createLocalPlaceDetailFromStop(stop: SetupPlannerStop): PlaceDetail {
+  return {
+    id: stop.placeId ?? stop.providerPlaceId ?? stop.id,
+    name: stop.name,
+    category: stop.category,
+    categoryKey: stop.categoryKey,
+    address: stop.address ?? "",
+    lat: stop.lat ?? 0,
+    lng: stop.lng ?? 0,
+    region: "",
+    provider: stop.provider ?? "internal",
+    providerPlaceId: stop.providerPlaceId ?? "",
+    phone: stop.phone ?? "",
+    websiteUrl: stop.websiteUrl ?? "",
+    providerUrl: stop.providerUrl ?? "",
+    openingHours: stop.openingHours ?? [],
+    sourceType: "search",
+    lastSyncedAt: null,
+  };
+}
+
 function mapStopPreview(
   form: StopFormState,
   transportType: string,
@@ -168,12 +226,19 @@ function mapStopPreview(
 
   return {
     id,
+    placeId: form.placeId || form.providerPlaceId || undefined,
     name: form.name.trim(),
     category: CATEGORY_LABELS[form.categoryKey],
     categoryKey: form.categoryKey,
     address: form.address,
     lat: form.lat ?? undefined,
     lng: form.lng ?? undefined,
+    provider: form.provider ?? undefined,
+    providerPlaceId: form.providerPlaceId || undefined,
+    phone: form.phone || undefined,
+    websiteUrl: form.websiteUrl || undefined,
+    providerUrl: form.providerUrl || undefined,
+    openingHours: form.openingHours,
     time: form.visitTimeMode === "manual" ? form.time : "자동 배정",
     congestion: 0,
     stayMinutes: form.stayMinutes,
@@ -190,6 +255,7 @@ function mapStopPreview(
 
 function mapFormFromStop(stop: SetupPlannerStop): StopFormState {
   return {
+    placeId: stop.placeId ?? "",
     name: stop.name,
     categoryKey: stop.categoryKey,
     visitTimeMode: stop.visitTimeMode ?? "auto",
@@ -200,6 +266,12 @@ function mapFormFromStop(stop: SetupPlannerStop): StopFormState {
     address: stop.address ?? "",
     lat: stop.lat ?? null,
     lng: stop.lng ?? null,
+    provider: stop.provider ?? null,
+    providerPlaceId: stop.providerPlaceId ?? "",
+    phone: stop.phone ?? "",
+    websiteUrl: stop.websiteUrl ?? "",
+    providerUrl: stop.providerUrl ?? "",
+    openingHours: stop.openingHours ?? [],
   };
 }
 
@@ -236,6 +308,8 @@ export function SetupPage() {
   const [journeyPointQuery, setJourneyPointQuery] = useState({ start: "", end: "" });
   const [journeyPointSuggestions, setJourneyPointSuggestions] = useState<PlaceSuggestion[]>([]);
   const [searchingJourneyPoints, setSearchingJourneyPoints] = useState(false);
+  const [selectedPlaceId, setSelectedPlaceId] = useState<string | null>(null);
+  const [selectedPlaceDetail, setSelectedPlaceDetail] = useState<PlaceDetail | null>(null);
   const [error, setError] = useState("");
   const [injectedCommunityPlaceId, setInjectedCommunityPlaceId] = useState<string | null>(null);
   const isEditMode = Boolean(editingTripId);
@@ -334,6 +408,7 @@ export function SetupPage() {
         mapStopPreview(
           {
             ...createDefaultStopForm(),
+            placeId: communityPlaceId,
             name: communityPlaceName.trim(),
             address: communityPlaceAddress,
             categoryKey: normalizeCategoryKeyForCommunity(communityPlaceCategoryKey),
@@ -500,10 +575,17 @@ export function SetupPage() {
 
       setStopForm((current) => ({
         ...current,
+        placeId: details.placeId,
         name: details.name || suggestion.title,
         address: details.address,
         lat: details.lat,
         lng: details.lng,
+        provider: details.provider,
+        providerPlaceId: details.providerPlaceId,
+        phone: details.phone ?? "",
+        websiteUrl: details.websiteUrl ?? "",
+        providerUrl: details.providerUrl ?? "",
+        openingHours: details.openingHours ?? [],
       }));
       setSuggestions([]);
       setError("");
@@ -630,6 +712,12 @@ export function SetupPage() {
           address: stop.address ?? "",
           lat: stop.lat ?? null,
           lng: stop.lng ?? null,
+          provider: stop.provider,
+          providerPlaceId: stop.providerPlaceId,
+          phone: stop.phone,
+          websiteUrl: stop.websiteUrl,
+          providerUrl: stop.providerUrl,
+          openingHours: stop.openingHours,
         });
       }
 
@@ -968,6 +1056,18 @@ export function SetupPage() {
                     <strong>{stopForm.name}</strong>
                     <p>{stopForm.address}</p>
                   </div>
+                  {stopForm.placeId ? (
+                    <button
+                      type="button"
+                      className="button button--ghost button--compact"
+                      onClick={() => {
+                        setSelectedPlaceId(stopForm.placeId);
+                        setSelectedPlaceDetail(createLocalPlaceDetailFromForm(stopForm));
+                      }}
+                    >
+                      상세 보기
+                    </button>
+                  ) : null}
                 </div>
               ) : null}
             </div>
@@ -1099,6 +1199,14 @@ export function SetupPage() {
                     editing={editingStopId === stop.id}
                     onEdit={handleEditStop}
                     onDelete={handleDeleteStop}
+                    onOpenDetail={
+                      stop.placeId
+                        ? (selectedStop) => {
+                            setSelectedPlaceId(selectedStop.placeId ?? null);
+                            setSelectedPlaceDetail(createLocalPlaceDetailFromStop(selectedStop));
+                          }
+                        : undefined
+                    }
                   />
                 ))}
               </>
@@ -1113,6 +1221,15 @@ export function SetupPage() {
           </section>
         </div>
       </div>
+      <PlaceDetailSheet
+        placeId={selectedPlaceId}
+        open={Boolean(selectedPlaceId)}
+        providedPlace={selectedPlaceDetail}
+        onClose={() => {
+          setSelectedPlaceId(null);
+          setSelectedPlaceDetail(null);
+        }}
+      />
     </div>
   );
 }

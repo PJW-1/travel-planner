@@ -7,6 +7,8 @@ export type TravelRegion =
   | "greater_china"
   | "oceania";
 
+export type PlaceProvider = "kakao" | "google" | "internal";
+
 export type TripConfig = {
   destination: string;
   days: number;
@@ -30,12 +32,19 @@ export type TripConfig = {
 
 export type PlannerStop = {
   id: string;
+  placeId?: string;
   name: string;
   category: string;
   categoryKey: "transport" | "cafe" | "activity" | "view";
   address?: string;
   lat?: number;
   lng?: number;
+  provider?: PlaceProvider;
+  providerPlaceId?: string;
+  phone?: string;
+  websiteUrl?: string;
+  providerUrl?: string;
+  openingHours?: string[];
   time: string;
   congestion: number;
   stayMinutes: number;

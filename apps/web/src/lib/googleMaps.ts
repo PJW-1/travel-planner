@@ -209,10 +209,22 @@ function normalizePlaceResult(place: any) {
   if (Number.isFinite(lat) && Number.isFinite(lng)) {
     placeDetailsCache.set(placeId, {
       placeId,
+      provider: "google",
+      providerPlaceId: String(place?.place_id ?? placeId),
       name: place?.name ?? "",
       address,
       lat,
       lng,
+      phone: place?.formatted_phone_number ?? place?.international_phone_number ?? undefined,
+      websiteUrl: place?.website ?? undefined,
+      providerUrl:
+        Number.isFinite(lat) && Number.isFinite(lng)
+          ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(place?.name ?? address)}&query_place_id=${encodeURIComponent(String(place?.place_id ?? placeId))}`
+          : undefined,
+      openingHours: Array.isArray(place?.opening_hours?.weekday_text)
+        ? place.opening_hours.weekday_text
+        : undefined,
+      rawPayload: place ?? null,
     });
   }
 
@@ -438,7 +450,16 @@ export async function fetchPlaceDetails(placeId: string) {
     service.getDetails(
       {
         placeId,
-        fields: ["place_id", "name", "formatted_address", "geometry"],
+        fields: [
+          "place_id",
+          "name",
+          "formatted_address",
+          "geometry",
+          "formatted_phone_number",
+          "international_phone_number",
+          "website",
+          "opening_hours",
+        ],
       },
       (place: any, status: string) => {
         if (status !== google.maps.places.PlacesServiceStatus.OK || !place) {

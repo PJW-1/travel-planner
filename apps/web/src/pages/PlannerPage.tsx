@@ -13,6 +13,7 @@ import { InsightPanel } from "@/components/planner/InsightPanel";
 import { JourneyAnchorCard } from "@/components/planner/JourneyAnchorCard";
 import { PlannerCanvas } from "@/components/planner/PlannerCanvas";
 import { TimelineStopCard } from "@/components/planner/TimelineStopCard";
+import { PlaceDetailSheet } from "@/components/places/PlaceDetailSheet";
 import { buildPreviewTripDetail, reorderStops } from "@/lib/plannerPreview";
 import {
   fetchTripDetail,
@@ -73,6 +74,7 @@ export function PlannerPage() {
   const [draggingStopId, setDraggingStopId] = useState<string | null>(null);
   const [dropTargetStopId, setDropTargetStopId] = useState<string | null>(null);
   const [isReordering, setIsReordering] = useState(false);
+  const [selectedPlaceId, setSelectedPlaceId] = useState<string | null>(null);
 
   const tripId = searchParams.get("tripId");
   const dayNumber = Number(searchParams.get("day") ?? "1");
@@ -332,6 +334,7 @@ export function PlannerPage() {
                       index={index + 1}
                       last={isLastStop}
                       moveModeLabel={getSegmentModeLabel(nextSegment?.mode)}
+                      onOpenDetail={stop.placeId ? () => setSelectedPlaceId(stop.placeId ?? null) : undefined}
                       draggable={currentStops.length > 1 && !isReordering}
                       dragging={draggingStopId === stop.id}
                       dropTarget={dropTargetStopId === stop.id}
@@ -464,6 +467,12 @@ export function PlannerPage() {
           />
         </div>
       </div>
+
+      <PlaceDetailSheet
+        placeId={selectedPlaceId}
+        open={Boolean(selectedPlaceId)}
+        onClose={() => setSelectedPlaceId(null)}
+      />
     </div>
   );
 }

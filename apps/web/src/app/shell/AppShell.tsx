@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { MapPin, Sparkles, UserCircle2 } from "lucide-react";
+import { UserCircle2 } from "lucide-react";
 import { NavLink, Outlet, useLocation } from "react-router-dom";
 import { fetchMe } from "@/lib/authApi";
 
@@ -18,6 +18,9 @@ type AuthUser = {
   status: string;
   createdAt: string;
 };
+
+const shellBackdropImage =
+  "https://images.unsplash.com/photo-1469854523086-cc02fe5d8800?auto=format&fit=crop&q=80&w=2000";
 
 export function AppShell() {
   const [authUser, setAuthUser] = useState<AuthUser | null>(null);
@@ -55,25 +58,23 @@ export function AppShell() {
   }, []);
 
   return (
-    <div className={isHomePage ? "app-shell app-shell--home" : "app-shell"}>
-      <header className={isHomePage ? "topbar topbar--overlay" : "topbar"}>
-        <NavLink to="/home" className="brand">
-          {isHomePage ? (
-            <strong className="brand__wordmark">TripFlow</strong>
-          ) : (
-            <>
-              <div className="brand__badge">
-                <MapPin size={22} strokeWidth={2.5} />
-              </div>
-              <div>
-                <p className="eyebrow">지능형 여행 설계 플랫폼</p>
-                <strong>TripFlow</strong>
-              </div>
-            </>
-          )}
+    <div className={isHomePage ? "app-shell app-shell--home" : "app-shell app-shell--immersive"}>
+      {!isHomePage ? (
+        <>
+          <div
+            className="app-shell__backdrop"
+            style={{ backgroundImage: `url(${shellBackdropImage})` }}
+          />
+          <div className="app-shell__backdrop-overlay" />
+        </>
+      ) : null}
+
+      <header className={isHomePage ? "topbar topbar--overlay" : "topbar topbar--immersive"}>
+        <NavLink to="/home" className="brand brand--wordmark">
+          <strong className="brand__wordmark">TripFlow</strong>
         </NavLink>
 
-        <nav className={isHomePage ? "nav nav--overlay" : "nav"}>
+        <nav className={isHomePage ? "nav nav--overlay" : "nav nav--immersive"}>
           {navItems.map((item) => (
             <NavLink
               key={item.to}
@@ -88,7 +89,7 @@ export function AppShell() {
         <div className="topbar__actions">
           <NavLink
             to={authUser ? "/my" : "/login"}
-            className={isHomePage ? "profile-link profile-link--overlay" : "profile-link"}
+            className={isHomePage ? "profile-link profile-link--overlay" : "profile-link profile-link--immersive"}
           >
             <UserCircle2 size={18} />
             {authUser ? "마이페이지" : "로그인"}
@@ -96,20 +97,11 @@ export function AppShell() {
         </div>
       </header>
 
-      <main className={isHomePage ? "page-frame page-frame--home" : "page-frame"}>
-        {!isHomePage ? <div className="hero-backdrop hero-backdrop--one" /> : null}
-        {!isHomePage ? <div className="hero-backdrop hero-backdrop--two" /> : null}
+      <main className={isHomePage ? "page-frame page-frame--home" : "page-frame page-frame--immersive"}>
         <div className="page-frame__content">
           <Outlet />
         </div>
       </main>
-
-      <button
-        className={isHomePage ? "floating-action floating-action--overlay" : "floating-action"}
-      >
-        <Sparkles size={16} />
-        AI 일정 도우미
-      </button>
     </div>
   );
 }

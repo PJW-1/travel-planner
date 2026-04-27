@@ -66,6 +66,7 @@ export type CommunityRouteSummary = MarketRoute & {
   dateRange: string;
   publishedAt: string;
   likedByMe?: boolean;
+  travelRegion?: string;
 };
 
 export type CommunityRouteDetail = {
@@ -84,6 +85,7 @@ export type CommunityRouteDetail = {
   tags: string[];
   publishedAt: string;
   likedByMe?: boolean;
+  travelRegion?: string;
   days: Array<{
     id: string;
     dayNumber: number;

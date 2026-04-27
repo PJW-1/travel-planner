@@ -16,6 +16,7 @@ type PlannerCanvasProps = {
     optimizationScore: number;
   };
   travelRegion?: TravelRegion;
+  showSummary?: boolean;
 };
 
 const categoryColors = {
@@ -69,6 +70,7 @@ export function PlannerCanvas({
   routeSegments = [],
   summary,
   travelRegion = "korea",
+  showSummary = true,
 }: PlannerCanvasProps) {
   const mapRef = useRef<HTMLDivElement | null>(null);
   const overlaysRef = useRef<any[]>([]);
@@ -174,12 +176,14 @@ export function PlannerCanvas({
           hoverOverlay?.setMap(null);
           hoverOverlay = null;
         });
+
         overlaysRef.current.push(marker);
         bounds.extend(position);
       });
 
       routeSegments.forEach((segment) => {
         if (!Array.isArray(segment.path) || segment.path.length < 2) return;
+
         const path = segment.path.map((point) => new kakao.maps.LatLng(point.lat, point.lng));
         const polyline = new kakao.maps.Polyline({
           map,
@@ -257,7 +261,7 @@ export function PlannerCanvas({
         });
 
         overlaysRef.current.push(marker);
-        bounds.extend(marker.getPosition());
+        bounds.extend(marker.getPosition()!);
       });
 
       anchorPoints.forEach((point, index) => {
@@ -270,12 +274,14 @@ export function PlannerCanvas({
             scaledSize: new google.maps.Size(44, 56),
           },
         });
+
         overlaysRef.current.push(marker);
-        bounds.extend(marker.getPosition());
+        bounds.extend(marker.getPosition()!);
       });
 
       routeSegments.forEach((segment) => {
         if (!Array.isArray(segment.path) || segment.path.length < 2) return;
+
         const polyline = new google.maps.Polyline({
           map,
           path: segment.path,
@@ -306,6 +312,7 @@ export function PlannerCanvas({
 
     async function renderMap() {
       if (!mapRef.current) return;
+
       try {
         overlaysRef.current.forEach((overlay) => overlay?.setMap?.(null));
         overlaysRef.current = [];
@@ -319,7 +326,9 @@ export function PlannerCanvas({
         setMapError("");
       } catch (error) {
         if (isMounted) {
-          setMapError(error instanceof Error ? error.message : "지도를 불러오는 중 오류가 발생했습니다.");
+          setMapError(
+            error instanceof Error ? error.message : "지도를 불러오는 중 오류가 발생했습니다.",
+          );
         }
       }
     }
@@ -335,20 +344,22 @@ export function PlannerCanvas({
 
   return (
     <section className="planner-canvas">
-      <div className="planner-summary">
-        <div>
-          <span>총 이동 거리</span>
-          <strong>{summary.totalDistanceKm.toFixed(1)}km</strong>
+      {showSummary ? (
+        <div className="planner-summary">
+          <div>
+            <span>총 이동 거리</span>
+            <strong>{summary.totalDistanceKm.toFixed(1)}km</strong>
+          </div>
+          <div>
+            <span>예상 이동 시간</span>
+            <strong>{summary.totalTravelMinutes}분</strong>
+          </div>
+          <div>
+            <span>동선 점수</span>
+            <strong>{summary.optimizationScore}/100</strong>
+          </div>
         </div>
-        <div>
-          <span>예상 이동 시간</span>
-          <strong>{summary.totalTravelMinutes}분</strong>
-        </div>
-        <div>
-          <span>동선 점수</span>
-          <strong>{summary.optimizationScore}/100</strong>
-        </div>
-      </div>
+      ) : null}
 
       <div ref={mapRef} className="planner-map" />
 

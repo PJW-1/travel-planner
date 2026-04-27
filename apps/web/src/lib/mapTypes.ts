@@ -1,3 +1,5 @@
+import type { PlaceProvider } from "@travel/shared";
+
 export type PlaceSuggestion = {
   placeId: string;
   title: string;
@@ -9,10 +11,17 @@ export type PlaceSuggestion = {
 
 export type PlaceDetails = {
   placeId: string;
+  provider: PlaceProvider;
+  providerPlaceId: string;
   name: string;
   address: string;
   lat: number;
   lng: number;
+  phone?: string;
+  websiteUrl?: string;
+  providerUrl?: string;
+  openingHours?: string[];
+  rawPayload?: Record<string, unknown> | null;
 };
 
 export type SuggestionSearchOptions = {
