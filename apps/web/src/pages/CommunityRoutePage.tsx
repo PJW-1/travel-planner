@@ -338,7 +338,6 @@ export function CommunityRoutePage() {
           : current,
       );
       setCommentText("");
-      setFeedback(result.message);
     } catch (commentError) {
       setError(
         commentError instanceof Error

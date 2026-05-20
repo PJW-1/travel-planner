@@ -8,12 +8,13 @@ import {
   PencilLine,
   Plus,
   ShieldAlert,
+  Settings,
   Trash2,
   UserRound,
+  X,
 } from "lucide-react";
 import type { SavedPlan } from "@travel/shared";
 import { Link, useNavigate } from "react-router-dom";
-import { PageHeader } from "@/components/PageHeader";
 import { PlaceDetailSheet } from "@/components/places/PlaceDetailSheet";
 import { changePassword, deleteAccount, fetchMe, logout, updateProfile } from "@/lib/authApi";
 import {
@@ -33,6 +34,8 @@ type ProfileState = {
   createdAt: string;
   lastLoginAt: string | null;
 };
+
+type AccountDialog = "profile" | "password" | "danger" | null;
 
 export function MyPage() {
   const navigate = useNavigate();
@@ -54,6 +57,7 @@ export function MyPage() {
   const [nextPasswordConfirm, setNextPasswordConfirm] = useState("");
   const [deletePassword, setDeletePassword] = useState("");
   const [selectedPlaceId, setSelectedPlaceId] = useState<string | null>(null);
+  const [accountDialog, setAccountDialog] = useState<AccountDialog>(null);
 
   useEffect(() => {
     let isMounted = true;
@@ -125,6 +129,7 @@ export function MyPage() {
       setProfile(result.user);
       setNickname(result.user.nickname);
       setSuccessMessage(result.message);
+      setAccountDialog(null);
       window.dispatchEvent(new Event("auth-changed"));
     } catch (error) {
       setErrorMessage(
@@ -160,6 +165,7 @@ export function MyPage() {
       setNextPassword("");
       setNextPasswordConfirm("");
       setSuccessMessage(result.message);
+      setAccountDialog(null);
     } catch (error) {
       setErrorMessage(
         error instanceof Error ? error.message : "비밀번호 변경 중 오류가 발생했습니다.",
@@ -257,13 +263,43 @@ export function MyPage() {
     }
   }
 
+  function openAccountDialog(dialog: Exclude<AccountDialog, null>) {
+    setErrorMessage("");
+    setSuccessMessage("");
+    setAccountDialog(dialog);
+  }
+
   return (
-    <div className="single-column-page">
-      <PageHeader
-        eyebrow="마이페이지"
-        title="내 여행 기록과 저장한 장소를 한곳에서 관리해 보세요"
-        description="저장한 일정과 장소를 다시 꺼내 쓰고, 프로필도 간단하게 수정할 수 있습니다."
-        actions={
+    <div className="single-column-page my-page">
+      <section className="my-hero panel">
+        <div className="my-hero__identity">
+          <div className="my-avatar">
+            <UserRound size={26} />
+          </div>
+          <div>
+            <span className="my-hero__eyebrow">MY PAGE</span>
+            <h1>{profile?.nickname ?? "여행자"}</h1>
+            <p>{profile?.email ?? "로그인 정보를 불러오는 중입니다."}</p>
+          </div>
+        </div>
+
+        <div className="my-hero__actions">
+          <button
+            type="button"
+            className="button button--secondary"
+            onClick={() => openAccountDialog("profile")}
+          >
+            <PencilLine size={16} />
+            프로필 수정
+          </button>
+          <button
+            type="button"
+            className="button button--secondary"
+            onClick={() => openAccountDialog("password")}
+          >
+            <LockKeyhole size={16} />
+            비밀번호 변경
+          </button>
           <button
             type="button"
             className="button button--secondary"
@@ -273,161 +309,56 @@ export function MyPage() {
             <LogOut size={16} />
             {isSubmitting ? "로그아웃 중..." : "로그아웃"}
           </button>
-        }
-      />
+        </div>
+      </section>
 
       {errorMessage ? <p className="form-feedback form-feedback--error">{errorMessage}</p> : null}
       {successMessage ? (
         <p className="form-feedback form-feedback--success">{successMessage}</p>
       ) : null}
 
-      <div className="two-column-layout two-column-layout--profile">
-        <section className="panel panel--muted">
-          <div className="panel__header">
-            <div className="section-title__label">
-              <UserRound size={16} />
-              <span>프로필</span>
+      <section className="my-overview-grid">
+        <article className="my-stat-card">
+          <span>저장 일정</span>
+          <strong>{savedPlans.length}</strong>
+          <p>다시 편집 가능한 여행 계획</p>
+        </article>
+        <article className="my-stat-card">
+          <span>저장 장소</span>
+          <strong>{savedPlaces.length}</strong>
+          <p>AI 랩과 커뮤니티에서 담은 장소</p>
+        </article>
+        <article className="my-stat-card">
+          <span>보관 루트</span>
+          <strong>{savedRoutes.length}</strong>
+          <p>커뮤니티에서 저장한 여행 루트</p>
+        </article>
+      </section>
+
+      <section className="my-library">
+        <article className="panel my-section-card">
+          <div className="my-section-card__header">
+            <div>
+              <span>Plans</span>
+              <h2>저장된 일정</h2>
             </div>
-          </div>
-
-          <div className="profile-card">
-            <label className="profile-field">
-              <span>닉네임</span>
-              <input
-                type="text"
-                value={nickname}
-                onChange={(event) => setNickname(event.target.value)}
-                placeholder="닉네임을 입력해 주세요"
-              />
-            </label>
-
-            <div className="profile-field profile-field--readonly">
-              <span>이메일</span>
-              <strong>{profile?.email ?? "-"}</strong>
-            </div>
-
-            <div className="profile-field profile-field--readonly">
-              <span>최근 로그인</span>
-              <strong>
-                {profile?.lastLoginAt
-                  ? new Date(profile.lastLoginAt).toLocaleString("ko-KR")
-                  : "-"}
-              </strong>
-            </div>
-
-            <button
-              type="button"
-              className="button button--primary"
-              onClick={handleSaveProfile}
-              disabled={isSavingProfile}
-            >
-              <PencilLine size={16} />
-              {isSavingProfile ? "저장 중..." : "프로필 저장"}
-            </button>
-          </div>
-
-          <div className="account-management-card">
-            <div className="section-title__label">
-              <LockKeyhole size={16} />
-              <span>비밀번호 변경</span>
-            </div>
-
-            <label className="profile-field">
-              <span>현재 비밀번호</span>
-              <input
-                type="password"
-                value={currentPassword}
-                onChange={(event) => setCurrentPassword(event.target.value)}
-                placeholder="현재 비밀번호"
-                autoComplete="current-password"
-              />
-            </label>
-
-            <label className="profile-field">
-              <span>새 비밀번호</span>
-              <input
-                type="password"
-                value={nextPassword}
-                onChange={(event) => setNextPassword(event.target.value)}
-                placeholder="8자 이상 입력"
-                autoComplete="new-password"
-              />
-            </label>
-
-            <label className="profile-field">
-              <span>새 비밀번호 확인</span>
-              <input
-                type="password"
-                value={nextPasswordConfirm}
-                onChange={(event) => setNextPasswordConfirm(event.target.value)}
-                placeholder="새 비밀번호 재입력"
-                autoComplete="new-password"
-              />
-            </label>
-
-            <button
-              type="button"
-              className="button button--secondary"
-              onClick={handleChangePassword}
-              disabled={isChangingPassword}
-            >
-              <LockKeyhole size={16} />
-              {isChangingPassword ? "변경 중..." : "비밀번호 변경"}
-            </button>
-          </div>
-
-          <div className="account-management-card account-management-card--danger">
-            <div className="section-title__label">
-              <ShieldAlert size={16} />
-              <span>회원 탈퇴</span>
-            </div>
-            <p>
-              탈퇴하면 현재 계정으로 다시 로그인할 수 없습니다. 필요한 일정은 먼저 확인해 주세요.
-            </p>
-
-            <label className="profile-field">
-              <span>현재 비밀번호</span>
-              <input
-                type="password"
-                value={deletePassword}
-                onChange={(event) => setDeletePassword(event.target.value)}
-                placeholder="탈퇴 확인용 비밀번호"
-                autoComplete="current-password"
-              />
-            </label>
-
-            <button
-              type="button"
-              className="button button--ghost"
-              onClick={handleDeleteAccount}
-              disabled={isDeletingAccount}
-            >
-              <Trash2 size={16} />
-              {isDeletingAccount ? "탈퇴 처리 중..." : "회원 탈퇴"}
-            </button>
-          </div>
-        </section>
-
-        <section className="panel">
-          <div className="panel__header">
-            <div className="section-title__label">
-              <Bookmark size={16} />
-              <span>저장된 일정</span>
-            </div>
+            <Link to="/setup" className="button button--secondary">
+              새 일정 만들기
+            </Link>
           </div>
 
           {savedPlans.length > 0 ? (
-            <div className="saved-plan-list">
+            <div className="my-item-list">
               {savedPlans.map((plan) => (
-                <article key={plan.id} className="saved-plan">
-                  <div className="saved-plan__emoji">{plan.emoji}</div>
-                  <div className="saved-plan__body">
+                <article key={plan.id} className="my-list-item">
+                  <div className="my-list-item__icon">{plan.emoji}</div>
+                  <div className="my-list-item__body">
                     <h3>{plan.title}</h3>
                     <p>
                       {plan.date} | 장소 {plan.placeCount}개
                     </p>
                   </div>
-                  <div className="saved-plan__actions">
+                  <div className="my-list-item__actions">
                     <Link to={`/setup?tripId=${plan.id}`} className="button button--secondary">
                       다시 편집
                     </Link>
@@ -447,114 +378,282 @@ export function MyPage() {
           ) : (
             <div className="empty-state">
               <p>아직 저장된 일정이 없습니다. 플래너에서 결과를 저장해 보세요.</p>
-              <Link to="/setup" className="button button--secondary">
-                새 일정 만들기
-              </Link>
             </div>
           )}
-        </section>
-      </div>
+        </article>
 
-      <section className="panel panel--muted">
-        <div className="panel__header">
-          <div className="section-title__label">
-            <Heart size={16} />
-            <span>저장 장소</span>
-          </div>
-        </div>
-
-        {savedPlaces.length > 0 ? (
-          <div className="saved-plan-list">
-            {savedPlaces.map((place) => (
-              <article key={place.id} className="saved-plan">
-                <div className="saved-plan__emoji">S</div>
-                <div className="saved-plan__body">
-                  <h3>{place.title}</h3>
-                  <p>{place.address || place.region}</p>
-                  <small className="saved-plan__meta">{place.sourceTitle}</small>
-                </div>
-                <div className="saved-plan__actions">
-                  <button
-                    type="button"
-                    className="button button--ghost"
-                    onClick={() => {
-                      if (place.placeId) {
-                        setSelectedPlaceId(place.placeId);
-                      }
-                    }}
-                  >
-                    상세 보기
-                  </button>
-                  <button
-                    type="button"
-                    className="button button--secondary"
-                    onClick={() => handleAddSavedPlace(place)}
-                  >
-                    <Plus size={16} />
-                    플래너에 추가
-                  </button>
-                </div>
-              </article>
-            ))}
-          </div>
-        ) : (
-          <div className="empty-state">
-            <p>아직 저장한 장소가 없습니다. AI 랩이나 커뮤니티에서 장소를 담아보세요.</p>
+        <article className="panel my-section-card">
+          <div className="my-section-card__header">
+            <div>
+              <span>Places</span>
+              <h2>저장 장소</h2>
+            </div>
             <Link to="/ai-lab" className="button button--secondary">
-              AI 랩 가기
+              장소 찾기
             </Link>
           </div>
-        )}
-      </section>
 
-      <section className="panel">
-        <div className="panel__header">
-          <div className="section-title__label">
-            <Bookmark size={16} />
-            <span>보관한 커뮤니티 루트</span>
-          </div>
-        </div>
+          {savedPlaces.length > 0 ? (
+            <div className="my-item-list">
+              {savedPlaces.map((place) => (
+                <article key={place.id} className="my-list-item">
+                  <div className="my-list-item__icon">
+                    <Heart size={18} />
+                  </div>
+                  <div className="my-list-item__body">
+                    <h3>{place.title}</h3>
+                    <p>{place.address || place.region}</p>
+                    <small>{place.sourceTitle}</small>
+                  </div>
+                  <div className="my-list-item__actions">
+                    <button
+                      type="button"
+                      className="button button--secondary"
+                      onClick={() => {
+                        if (place.placeId) {
+                          setSelectedPlaceId(place.placeId);
+                        }
+                      }}
+                    >
+                      상세 보기
+                    </button>
+                    <button
+                      type="button"
+                      className="button button--primary"
+                      onClick={() => handleAddSavedPlace(place)}
+                    >
+                      <Plus size={16} />
+                      플래너에 추가
+                    </button>
+                  </div>
+                </article>
+              ))}
+            </div>
+          ) : (
+            <div className="empty-state">
+              <p>아직 저장한 장소가 없습니다. AI 랩이나 커뮤니티에서 장소를 담아보세요.</p>
+            </div>
+          )}
+        </article>
 
-        {savedRoutes.length > 0 ? (
-          <div className="saved-plan-list">
-            {savedRoutes.map((route) => (
-              <article key={route.id} className="saved-plan">
-                <div className="saved-plan__emoji">R</div>
-                <div className="saved-plan__body">
-                  <h3>{route.title}</h3>
-                  <p>
-                    {route.destination} | {route.days}박 {route.days + 1}일
-                  </p>
-                  <small className="saved-plan__meta">
-                    {route.author} · 좋아요 {route.likes} · 댓글 {route.comments}
-                  </small>
-                </div>
-                <div className="saved-plan__actions">
-                  <Link to={`/community/${route.id}`} className="button button--secondary">
-                    상세 보기
-                  </Link>
-                  <button
-                    type="button"
-                    className="button button--primary"
-                    onClick={() => void handleImportSavedRoute(route.id)}
-                    disabled={importingRouteId === route.id}
-                  >
-                    <GitFork size={16} />
-                    {importingRouteId === route.id ? "가져오는 중..." : "가져오기"}
-                  </button>
-                </div>
-              </article>
-            ))}
-          </div>
-        ) : (
-          <div className="empty-state">
-            <p>아직 보관한 커뮤니티 루트가 없습니다. 마음에 드는 루트를 저장해 보세요.</p>
+        <article className="panel my-section-card">
+          <div className="my-section-card__header">
+            <div>
+              <span>Routes</span>
+              <h2>보관한 커뮤니티 루트</h2>
+            </div>
             <Link to="/community" className="button button--secondary">
-              커뮤니티 둘러보기
+              커뮤니티 보기
             </Link>
           </div>
-        )}
+
+          {savedRoutes.length > 0 ? (
+            <div className="my-item-list">
+              {savedRoutes.map((route) => (
+                <article key={route.id} className="my-list-item">
+                  <div className="my-list-item__icon">
+                    <Bookmark size={18} />
+                  </div>
+                  <div className="my-list-item__body">
+                    <h3>{route.title}</h3>
+                    <p>
+                      {route.destination} | {route.days}박 {route.days + 1}일
+                    </p>
+                    <small>
+                      {route.author} · 좋아요 {route.likes} · 댓글 {route.comments}
+                    </small>
+                  </div>
+                  <div className="my-list-item__actions">
+                    <Link to={`/community/${route.id}`} className="button button--secondary">
+                      상세 보기
+                    </Link>
+                    <button
+                      type="button"
+                      className="button button--primary"
+                      onClick={() => void handleImportSavedRoute(route.id)}
+                      disabled={importingRouteId === route.id}
+                    >
+                      <GitFork size={16} />
+                      {importingRouteId === route.id ? "가져오는 중..." : "가져오기"}
+                    </button>
+                  </div>
+                </article>
+              ))}
+            </div>
+          ) : (
+            <div className="empty-state">
+              <p>아직 보관한 커뮤니티 루트가 없습니다. 마음에 드는 루트를 저장해 보세요.</p>
+            </div>
+          )}
+        </article>
       </section>
+
+      <section className="panel my-account-strip">
+        <div>
+          <span>Account</span>
+          <h2>계정 관리</h2>
+          <p>자주 쓰지 않는 설정은 필요할 때만 열어서 관리할 수 있게 정리했습니다.</p>
+        </div>
+        <div className="my-account-strip__actions">
+          <button
+            type="button"
+            className="button button--secondary"
+            onClick={() => openAccountDialog("profile")}
+          >
+            <Settings size={16} />
+            프로필 수정
+          </button>
+          <button
+            type="button"
+            className="button button--secondary"
+            onClick={() => openAccountDialog("password")}
+          >
+            <LockKeyhole size={16} />
+            비밀번호 변경
+          </button>
+          <button
+            type="button"
+            className="button button--ghost"
+            onClick={() => openAccountDialog("danger")}
+          >
+            <ShieldAlert size={16} />
+            회원 탈퇴
+          </button>
+        </div>
+      </section>
+
+      {accountDialog ? (
+        <div
+          className="account-modal"
+          role="presentation"
+          onMouseDown={(event) => {
+            if (event.target === event.currentTarget) {
+              setAccountDialog(null);
+            }
+          }}
+        >
+          <section className="account-modal__panel" role="dialog" aria-modal="true">
+            <button
+              type="button"
+              className="account-modal__close"
+              onClick={() => setAccountDialog(null)}
+              aria-label="닫기"
+            >
+              <X size={18} />
+            </button>
+
+            {accountDialog === "profile" ? (
+              <>
+                <div className="account-modal__header">
+                  <span>Profile</span>
+                  <h2>프로필 수정</h2>
+                  <p>마이페이지와 상단 메뉴에 표시될 닉네임을 변경합니다.</p>
+                </div>
+                <label className="profile-field">
+                  <span>닉네임</span>
+                  <input
+                    type="text"
+                    value={nickname}
+                    onChange={(event) => setNickname(event.target.value)}
+                    placeholder="닉네임을 입력해 주세요"
+                  />
+                </label>
+                <div className="profile-field profile-field--readonly">
+                  <span>이메일</span>
+                  <strong>{profile?.email ?? "-"}</strong>
+                </div>
+                <button
+                  type="button"
+                  className="button button--primary"
+                  onClick={handleSaveProfile}
+                  disabled={isSavingProfile}
+                >
+                  <PencilLine size={16} />
+                  {isSavingProfile ? "저장 중..." : "프로필 저장"}
+                </button>
+              </>
+            ) : null}
+
+            {accountDialog === "password" ? (
+              <>
+                <div className="account-modal__header">
+                  <span>Security</span>
+                  <h2>비밀번호 변경</h2>
+                  <p>현재 비밀번호 확인 후 새 비밀번호로 교체합니다.</p>
+                </div>
+                <label className="profile-field">
+                  <span>현재 비밀번호</span>
+                  <input
+                    type="password"
+                    value={currentPassword}
+                    onChange={(event) => setCurrentPassword(event.target.value)}
+                    placeholder="현재 비밀번호"
+                    autoComplete="current-password"
+                  />
+                </label>
+                <label className="profile-field">
+                  <span>새 비밀번호</span>
+                  <input
+                    type="password"
+                    value={nextPassword}
+                    onChange={(event) => setNextPassword(event.target.value)}
+                    placeholder="8자 이상 입력"
+                    autoComplete="new-password"
+                  />
+                </label>
+                <label className="profile-field">
+                  <span>새 비밀번호 확인</span>
+                  <input
+                    type="password"
+                    value={nextPasswordConfirm}
+                    onChange={(event) => setNextPasswordConfirm(event.target.value)}
+                    placeholder="새 비밀번호 재입력"
+                    autoComplete="new-password"
+                  />
+                </label>
+                <button
+                  type="button"
+                  className="button button--primary"
+                  onClick={handleChangePassword}
+                  disabled={isChangingPassword}
+                >
+                  <LockKeyhole size={16} />
+                  {isChangingPassword ? "변경 중..." : "비밀번호 변경"}
+                </button>
+              </>
+            ) : null}
+
+            {accountDialog === "danger" ? (
+              <>
+                <div className="account-modal__header account-modal__header--danger">
+                  <span>Danger Zone</span>
+                  <h2>회원 탈퇴</h2>
+                  <p>탈퇴하면 현재 계정으로 다시 로그인할 수 없습니다.</p>
+                </div>
+                <label className="profile-field">
+                  <span>현재 비밀번호</span>
+                  <input
+                    type="password"
+                    value={deletePassword}
+                    onChange={(event) => setDeletePassword(event.target.value)}
+                    placeholder="탈퇴 확인용 비밀번호"
+                    autoComplete="current-password"
+                  />
+                </label>
+                <button
+                  type="button"
+                  className="button button--ghost"
+                  onClick={handleDeleteAccount}
+                  disabled={isDeletingAccount}
+                >
+                  <Trash2 size={16} />
+                  {isDeletingAccount ? "탈퇴 처리 중..." : "회원 탈퇴"}
+                </button>
+              </>
+            ) : null}
+          </section>
+        </div>
+      ) : null}
 
       <PlaceDetailSheet
         placeId={selectedPlaceId}

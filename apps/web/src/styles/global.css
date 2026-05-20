@@ -3103,6 +3103,272 @@ button {
   border: 1px solid rgba(248, 113, 113, 0.18);
 }
 
+.my-page {
+  gap: 22px;
+}
+
+.my-hero {
+  position: relative;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+  padding: clamp(24px, 4vw, 38px);
+  background:
+    radial-gradient(circle at top left, rgba(37, 99, 235, 0.16), transparent 34%),
+    linear-gradient(135deg, rgba(255, 255, 255, 0.86), rgba(241, 245, 249, 0.72));
+}
+
+.my-hero::after {
+  content: "";
+  position: absolute;
+  right: -80px;
+  top: -110px;
+  width: 260px;
+  height: 260px;
+  border-radius: 999px;
+  background: rgba(14, 165, 233, 0.12);
+  pointer-events: none;
+}
+
+.my-hero__identity {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  min-width: 0;
+}
+
+.my-avatar {
+  width: 72px;
+  height: 72px;
+  border-radius: 26px;
+  display: grid;
+  place-items: center;
+  color: white;
+  background: linear-gradient(135deg, #0f172a, #2563eb);
+  box-shadow: 0 18px 40px rgba(15, 23, 42, 0.18);
+}
+
+.my-hero__eyebrow,
+.my-section-card__header span,
+.my-account-strip span,
+.my-stat-card span,
+.account-modal__header span {
+  display: inline-flex;
+  color: var(--text-faint);
+  font-size: 0.76rem;
+  font-weight: 900;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.my-hero h1 {
+  margin: 6px 0 4px;
+  font-size: clamp(2rem, 4vw, 3.7rem);
+  line-height: 0.98;
+  letter-spacing: -0.07em;
+}
+
+.my-hero p,
+.my-account-strip p {
+  margin: 0;
+  color: var(--text-soft);
+  line-height: 1.65;
+}
+
+.my-hero__actions,
+.my-account-strip__actions {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.my-overview-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 16px;
+}
+
+.my-stat-card {
+  display: grid;
+  gap: 8px;
+  padding: 22px;
+  border-radius: 28px;
+  background: rgba(255, 255, 255, 0.78);
+  border: 1px solid rgba(15, 23, 42, 0.06);
+  box-shadow: 0 16px 36px rgba(15, 23, 42, 0.06);
+}
+
+.my-stat-card strong {
+  font-size: 2.2rem;
+  line-height: 1;
+  letter-spacing: -0.06em;
+}
+
+.my-stat-card p {
+  margin: 0;
+  color: var(--text-soft);
+  line-height: 1.5;
+  font-size: 0.9rem;
+}
+
+.my-library {
+  display: grid;
+  gap: 18px;
+}
+
+.my-section-card {
+  display: grid;
+  gap: 18px;
+}
+
+.my-section-card__header,
+.my-account-strip {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+}
+
+.my-section-card__header h2,
+.my-account-strip h2,
+.account-modal__header h2 {
+  margin: 4px 0 0;
+  font-size: clamp(1.35rem, 2vw, 2rem);
+  letter-spacing: -0.05em;
+}
+
+.my-item-list {
+  display: grid;
+  gap: 12px;
+}
+
+.my-list-item {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 14px;
+  padding: 16px;
+  border-radius: 24px;
+  background: rgba(255, 255, 255, 0.74);
+  border: 1px solid rgba(15, 23, 42, 0.06);
+}
+
+.my-list-item__icon {
+  width: 54px;
+  height: 54px;
+  border-radius: 20px;
+  display: grid;
+  place-items: center;
+  color: #1d4ed8;
+  font-size: 1.35rem;
+  font-weight: 900;
+  background: rgba(219, 234, 254, 0.8);
+}
+
+.my-list-item__body {
+  min-width: 0;
+}
+
+.my-list-item__body h3 {
+  margin: 0;
+  font-size: 1rem;
+  letter-spacing: -0.03em;
+}
+
+.my-list-item__body p,
+.my-list-item__body small {
+  display: block;
+  margin: 4px 0 0;
+  color: var(--text-soft);
+  line-height: 1.45;
+}
+
+.my-list-item__actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.my-account-strip {
+  padding: 22px;
+  background:
+    linear-gradient(135deg, rgba(15, 23, 42, 0.92), rgba(30, 64, 175, 0.84)),
+    rgba(15, 23, 42, 0.9);
+  color: white;
+}
+
+.my-account-strip span,
+.my-account-strip p {
+  color: rgba(255, 255, 255, 0.72);
+}
+
+.my-account-strip .button--secondary {
+  color: white;
+  background: rgba(255, 255, 255, 0.12);
+  border-color: rgba(255, 255, 255, 0.18);
+}
+
+.account-modal {
+  position: fixed;
+  inset: 0;
+  z-index: 80;
+  display: grid;
+  place-items: center;
+  padding: 22px;
+  background: rgba(15, 23, 42, 0.48);
+  backdrop-filter: blur(12px);
+}
+
+.account-modal__panel {
+  position: relative;
+  width: min(100%, 480px);
+  display: grid;
+  gap: 16px;
+  padding: 26px;
+  border-radius: 30px;
+  background: rgba(248, 250, 252, 0.96);
+  border: 1px solid rgba(255, 255, 255, 0.7);
+  box-shadow: 0 30px 90px rgba(15, 23, 42, 0.24);
+}
+
+.account-modal__close {
+  position: absolute;
+  top: 16px;
+  right: 16px;
+  width: 38px;
+  height: 38px;
+  border-radius: 14px;
+  display: grid;
+  place-items: center;
+  color: var(--text-soft);
+  background: rgba(255, 255, 255, 0.75);
+  border: 1px solid rgba(15, 23, 42, 0.06);
+}
+
+.account-modal__header {
+  padding-right: 42px;
+}
+
+.account-modal__header p {
+  margin: 8px 0 0;
+  color: var(--text-soft);
+  line-height: 1.6;
+}
+
+.account-modal__header--danger span,
+.account-modal__header--danger h2 {
+  color: #b42318;
+}
+
 .two-column-layout--profile {
   align-items: start;
 }
@@ -3413,8 +3679,26 @@ button {
   .lab-hero__grid,
   .two-column-layout,
   .login-alt-actions,
-  .planner-vault__current {
+  .planner-vault__current,
+  .my-hero,
+  .my-section-card__header,
+  .my-account-strip {
     flex-direction: column;
+  }
+
+  .my-overview-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .my-hero,
+  .my-section-card__header,
+  .my-account-strip {
+    align-items: stretch;
+  }
+
+  .my-hero__actions,
+  .my-account-strip__actions {
+    justify-content: flex-start;
   }
 
   .planner-vault__current-actions {
@@ -3513,6 +3797,24 @@ button {
 
   .community-route-stop-card__body {
     grid-column: 2 / -1;
+  }
+
+  .my-hero__identity,
+  .my-list-item {
+    grid-template-columns: 1fr;
+  }
+
+  .my-hero__identity {
+    display: grid;
+  }
+
+  .my-list-item {
+    justify-items: start;
+  }
+
+  .my-list-item__actions {
+    width: 100%;
+    justify-content: flex-start;
   }
 
   .community-route-action-card__buttons {
