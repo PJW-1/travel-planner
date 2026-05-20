@@ -1,11 +1,27 @@
 import { useEffect, useState } from "react";
-import { Bookmark, Heart, LogOut, PencilLine, Plus, Trash2, UserRound } from "lucide-react";
+import {
+  Bookmark,
+  GitFork,
+  Heart,
+  LockKeyhole,
+  LogOut,
+  PencilLine,
+  Plus,
+  ShieldAlert,
+  Trash2,
+  UserRound,
+} from "lucide-react";
 import type { SavedPlan } from "@travel/shared";
 import { Link, useNavigate } from "react-router-dom";
 import { PageHeader } from "@/components/PageHeader";
 import { PlaceDetailSheet } from "@/components/places/PlaceDetailSheet";
-import { fetchMe, logout, updateProfile } from "@/lib/authApi";
-import { fetchMySummary, type SavedAiPlace } from "@/lib/contentApi";
+import { changePassword, deleteAccount, fetchMe, logout, updateProfile } from "@/lib/authApi";
+import {
+  fetchMySummary,
+  importCommunityRoute,
+  type CommunityRouteSummary,
+  type SavedAiPlace,
+} from "@/lib/contentApi";
 import { deleteTrip } from "@/lib/tripsApi";
 
 type ProfileState = {
@@ -22,13 +38,21 @@ export function MyPage() {
   const navigate = useNavigate();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSavingProfile, setIsSavingProfile] = useState(false);
+  const [isChangingPassword, setIsChangingPassword] = useState(false);
+  const [isDeletingAccount, setIsDeletingAccount] = useState(false);
   const [deletingTripId, setDeletingTripId] = useState<string | null>(null);
+  const [importingRouteId, setImportingRouteId] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState("");
   const [successMessage, setSuccessMessage] = useState("");
   const [savedPlans, setSavedPlans] = useState<SavedPlan[]>([]);
   const [savedPlaces, setSavedPlaces] = useState<SavedAiPlace[]>([]);
+  const [savedRoutes, setSavedRoutes] = useState<CommunityRouteSummary[]>([]);
   const [profile, setProfile] = useState<ProfileState | null>(null);
   const [nickname, setNickname] = useState("");
+  const [currentPassword, setCurrentPassword] = useState("");
+  const [nextPassword, setNextPassword] = useState("");
+  const [nextPasswordConfirm, setNextPasswordConfirm] = useState("");
+  const [deletePassword, setDeletePassword] = useState("");
   const [selectedPlaceId, setSelectedPlaceId] = useState<string | null>(null);
 
   useEffect(() => {
@@ -44,6 +68,7 @@ export function MyPage() {
 
         setSavedPlans(summary.savedPlans);
         setSavedPlaces(summary.savedAiPlaces);
+        setSavedRoutes(summary.savedCommunityRoutes);
         setProfile(me.user);
         setNickname(me.user.nickname);
       } catch {
@@ -53,6 +78,7 @@ export function MyPage() {
 
         setSavedPlans([]);
         setSavedPlaces([]);
+        setSavedRoutes([]);
       }
     }
 
@@ -109,6 +135,73 @@ export function MyPage() {
     }
   }
 
+  async function handleChangePassword() {
+    if (!currentPassword || !nextPassword || !nextPasswordConfirm) {
+      setErrorMessage("비밀번호 입력칸을 모두 채워 주세요.");
+      return;
+    }
+
+    if (nextPassword !== nextPasswordConfirm) {
+      setErrorMessage("새 비밀번호 확인이 일치하지 않습니다.");
+      return;
+    }
+
+    setErrorMessage("");
+    setSuccessMessage("");
+    setIsChangingPassword(true);
+
+    try {
+      const result = await changePassword({
+        currentPassword,
+        nextPassword,
+      });
+
+      setCurrentPassword("");
+      setNextPassword("");
+      setNextPasswordConfirm("");
+      setSuccessMessage(result.message);
+    } catch (error) {
+      setErrorMessage(
+        error instanceof Error ? error.message : "비밀번호 변경 중 오류가 발생했습니다.",
+      );
+    } finally {
+      setIsChangingPassword(false);
+    }
+  }
+
+  async function handleDeleteAccount() {
+    if (!deletePassword) {
+      setErrorMessage("회원 탈퇴를 위해 현재 비밀번호를 입력해 주세요.");
+      return;
+    }
+
+    const shouldDelete = window.confirm(
+      "정말 회원 탈퇴할까요? 현재 계정으로 다시 로그인할 수 없습니다.",
+    );
+
+    if (!shouldDelete) {
+      return;
+    }
+
+    setErrorMessage("");
+    setSuccessMessage("");
+    setIsDeletingAccount(true);
+
+    try {
+      await deleteAccount({
+        password: deletePassword,
+      });
+      window.dispatchEvent(new Event("auth-changed"));
+      navigate("/home");
+    } catch (error) {
+      setErrorMessage(
+        error instanceof Error ? error.message : "회원 탈퇴 중 오류가 발생했습니다.",
+      );
+    } finally {
+      setIsDeletingAccount(false);
+    }
+  }
+
   async function handleDeleteTrip(tripId: string) {
     const shouldDelete = window.confirm("이 일정을 삭제할까요? 삭제 후에는 되돌릴 수 없습니다.");
 
@@ -144,6 +237,24 @@ export function MyPage() {
     });
 
     navigate(`/setup?${params.toString()}`);
+  }
+
+  async function handleImportSavedRoute(routeId: string) {
+    setImportingRouteId(routeId);
+    setErrorMessage("");
+    setSuccessMessage("");
+
+    try {
+      const result = await importCommunityRoute(routeId);
+      setSuccessMessage(result.message);
+      navigate(`/setup?tripId=${result.imported.tripId}`);
+    } catch (error) {
+      setErrorMessage(
+        error instanceof Error ? error.message : "루트를 가져오는 중 오류가 발생했습니다.",
+      );
+    } finally {
+      setImportingRouteId(null);
+    }
   }
 
   return (
@@ -212,6 +323,87 @@ export function MyPage() {
             >
               <PencilLine size={16} />
               {isSavingProfile ? "저장 중..." : "프로필 저장"}
+            </button>
+          </div>
+
+          <div className="account-management-card">
+            <div className="section-title__label">
+              <LockKeyhole size={16} />
+              <span>비밀번호 변경</span>
+            </div>
+
+            <label className="profile-field">
+              <span>현재 비밀번호</span>
+              <input
+                type="password"
+                value={currentPassword}
+                onChange={(event) => setCurrentPassword(event.target.value)}
+                placeholder="현재 비밀번호"
+                autoComplete="current-password"
+              />
+            </label>
+
+            <label className="profile-field">
+              <span>새 비밀번호</span>
+              <input
+                type="password"
+                value={nextPassword}
+                onChange={(event) => setNextPassword(event.target.value)}
+                placeholder="8자 이상 입력"
+                autoComplete="new-password"
+              />
+            </label>
+
+            <label className="profile-field">
+              <span>새 비밀번호 확인</span>
+              <input
+                type="password"
+                value={nextPasswordConfirm}
+                onChange={(event) => setNextPasswordConfirm(event.target.value)}
+                placeholder="새 비밀번호 재입력"
+                autoComplete="new-password"
+              />
+            </label>
+
+            <button
+              type="button"
+              className="button button--secondary"
+              onClick={handleChangePassword}
+              disabled={isChangingPassword}
+            >
+              <LockKeyhole size={16} />
+              {isChangingPassword ? "변경 중..." : "비밀번호 변경"}
+            </button>
+          </div>
+
+          <div className="account-management-card account-management-card--danger">
+            <div className="section-title__label">
+              <ShieldAlert size={16} />
+              <span>회원 탈퇴</span>
+            </div>
+            <p>
+              탈퇴하면 현재 계정으로 다시 로그인할 수 없습니다. 필요한 일정은 먼저 확인해 주세요.
+            </p>
+
+            <label className="profile-field">
+              <span>현재 비밀번호</span>
+              <input
+                type="password"
+                value={deletePassword}
+                onChange={(event) => setDeletePassword(event.target.value)}
+                placeholder="탈퇴 확인용 비밀번호"
+                autoComplete="current-password"
+              />
+            </label>
+
+            <button
+              type="button"
+              className="button button--ghost"
+              onClick={handleDeleteAccount}
+              disabled={isDeletingAccount}
+            >
+              <Trash2 size={16} />
+              {isDeletingAccount ? "탈퇴 처리 중..." : "회원 탈퇴"}
             </button>
           </div>
         </section>
@@ -310,6 +502,55 @@ export function MyPage() {
             <p>아직 저장한 장소가 없습니다. AI 랩이나 커뮤니티에서 장소를 담아보세요.</p>
             <Link to="/ai-lab" className="button button--secondary">
               AI 랩 가기
+            </Link>
+          </div>
+        )}
+      </section>
+
+      <section className="panel">
+        <div className="panel__header">
+          <div className="section-title__label">
+            <Bookmark size={16} />
+            <span>보관한 커뮤니티 루트</span>
+          </div>
+        </div>
+
+        {savedRoutes.length > 0 ? (
+          <div className="saved-plan-list">
+            {savedRoutes.map((route) => (
+              <article key={route.id} className="saved-plan">
+                <div className="saved-plan__emoji">R</div>
+                <div className="saved-plan__body">
+                  <h3>{route.title}</h3>
+                  <p>
+                    {route.destination} | {route.days}박 {route.days + 1}일
+                  </p>
+                  <small className="saved-plan__meta">
+                    {route.author} · 좋아요 {route.likes} · 댓글 {route.comments}
+                  </small>
+                </div>
+                <div className="saved-plan__actions">
+                  <Link to={`/community/${route.id}`} className="button button--secondary">
+                    상세 보기
+                  </Link>
+                  <button
+                    type="button"
+                    className="button button--primary"
+                    onClick={() => void handleImportSavedRoute(route.id)}
+                    disabled={importingRouteId === route.id}
+                  >
+                    <GitFork size={16} />
+                    {importingRouteId === route.id ? "가져오는 중..." : "가져오기"}
+                  </button>
+                </div>
+              </article>
+            ))}
+          </div>
+        ) : (
+          <div className="empty-state">
+            <p>아직 보관한 커뮤니티 루트가 없습니다. 마음에 드는 루트를 저장해 보세요.</p>
+            <Link to="/community" className="button button--secondary">
+              커뮤니티 둘러보기
             </Link>
           </div>
         )}

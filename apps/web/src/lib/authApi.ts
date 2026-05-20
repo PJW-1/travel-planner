@@ -109,6 +109,35 @@ export async function updateProfile(payload: { nickname: string }) {
   }>(response);
 }
 
+export async function changePassword(payload: {
+  currentPassword: string;
+  nextPassword: string;
+}) {
+  const response = await fetch(`${API_BASE_URL}/auth/password`, {
+    method: "PATCH",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    credentials: "include",
+    body: JSON.stringify(payload),
+  });
+
+  return parseJson<{ message: string }>(response);
+}
+
+export async function deleteAccount(payload: { password: string }) {
+  const response = await fetch(`${API_BASE_URL}/auth/me`, {
+    method: "DELETE",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    credentials: "include",
+    body: JSON.stringify(payload),
+  });
+
+  return parseJson<{ message: string }>(response);
+}
+
 export async function logout() {
   const response = await fetch(`${API_BASE_URL}/auth/logout`, {
     method: "POST",

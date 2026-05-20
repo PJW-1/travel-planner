@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import {
+  Bookmark,
   CalendarDays,
   Check,
   ChevronLeft,
@@ -7,16 +8,22 @@ import {
   Heart,
   LoaderCircle,
   MapPin,
+  MessageSquare,
+  Send,
   Share2,
+  Trash2,
 } from "lucide-react";
 import type { PlannerStop, TravelRegion } from "@travel/shared";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { PlannerCanvas } from "@/components/planner/PlannerCanvas";
 import { PlaceDetailSheet } from "@/components/places/PlaceDetailSheet";
 import {
+  createCommunityComment,
+  deleteCommunityComment,
   fetchCommunityRouteDetail,
   importCommunityRoute,
   saveCommunityPlace,
+  toggleCommunityRouteBookmark,
   toggleCommunityRouteLike,
   type CommunityRouteDetail,
 } from "@/lib/contentApi";
@@ -36,6 +43,21 @@ function getTransportLabel(value: string) {
     default:
       return "이동";
   }
+}
+
+function formatCommentDate(value: string) {
+  const date = new Date(value);
+
+  if (Number.isNaN(date.getTime())) {
+    return value;
+  }
+
+  return date.toLocaleString("ko-KR", {
+    month: "short",
+    day: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
 }
 
 function mapRouteStopsToPlannerStops(route: CommunityRouteDetail): PlannerStop[] {
@@ -87,7 +109,11 @@ export function CommunityRoutePage() {
   const [feedback, setFeedback] = useState("");
   const [importing, setImporting] = useState(false);
   const [liking, setLiking] = useState(false);
+  const [bookmarking, setBookmarking] = useState(false);
   const [sharing, setSharing] = useState(false);
+  const [commentText, setCommentText] = useState("");
+  const [commenting, setCommenting] = useState(false);
+  const [deletingCommentId, setDeletingCommentId] = useState<string | null>(null);
   const [savingPlaceId, setSavingPlaceId] = useState<string | null>(null);
   const [selectedPlaceId, setSelectedPlaceId] = useState<string | null>(null);
 
@@ -207,6 +233,37 @@ export function CommunityRoutePage() {
     }
   }
 
+  async function handleToggleBookmark() {
+    if (!route) {
+      return;
+    }
+
+    setBookmarking(true);
+    setFeedback("");
+    setError("");
+
+    try {
+      const result = await toggleCommunityRouteBookmark(route.id);
+      setRoute((current) =>
+        current
+          ? {
+              ...current,
+              bookmarkedByMe: result.bookmarked,
+            }
+          : current,
+      );
+      setFeedback(result.message);
+    } catch (bookmarkError) {
+      setError(
+        bookmarkError instanceof Error
+          ? bookmarkError.message
+          : "루트 보관을 처리하는 중 오류가 발생했습니다.",
+      );
+    } finally {
+      setBookmarking(false);
+    }
+  }
+
   async function handleShareRoute() {
     if (!route) {
       return;
@@ -256,6 +313,72 @@ export function CommunityRoutePage() {
       );
     } finally {
       setSavingPlaceId(null);
+    }
+  }
+
+  async function handleCreateComment() {
+    if (!route || !commentText.trim()) {
+      setError("댓글 내용을 입력해 주세요.");
+      return;
+    }
+
+    setCommenting(true);
+    setFeedback("");
+    setError("");
+
+    try {
+      const result = await createCommunityComment(route.id, commentText.trim());
+      setRoute((current) =>
+        current
+          ? {
+              ...current,
+              comments: result.commentCount,
+              commentItems: [...current.commentItems, result.comment],
+            }
+          : current,
+      );
+      setCommentText("");
+      setFeedback(result.message);
+    } catch (commentError) {
+      setError(
+        commentError instanceof Error
+          ? commentError.message
+          : "댓글을 등록하는 중 오류가 발생했습니다.",
+      );
+    } finally {
+      setCommenting(false);
+    }
+  }
+
+  async function handleDeleteComment(commentId: string) {
+    if (!route) {
+      return;
+    }
+
+    setDeletingCommentId(commentId);
+    setFeedback("");
+    setError("");
+
+    try {
+      const result = await deleteCommunityComment(route.id, commentId);
+      setRoute((current) =>
+        current
+          ? {
+              ...current,
+              comments: result.commentCount,
+              commentItems: current.commentItems.filter((comment) => comment.id !== result.commentId),
+            }
+          : current,
+      );
+      setFeedback(result.message);
+    } catch (deleteError) {
+      setError(
+        deleteError instanceof Error
+          ? deleteError.message
+          : "댓글을 삭제하는 중 오류가 발생했습니다.",
+      );
+    } finally {
+      setDeletingCommentId(null);
     }
   }
 
@@ -433,6 +556,76 @@ export function CommunityRoutePage() {
                 </article>
               ))}
             </div>
+
+            <article className="community-route-comments">
+              <div className="community-route-comments__header">
+                <div>
+                  <span>
+                    <MessageSquare size={15} />
+                    댓글
+                  </span>
+                  <h2>{route.comments}개의 의견</h2>
+                </div>
+              </div>
+
+              <div className="community-route-comment-form">
+                <textarea
+                  value={commentText}
+                  onChange={(event) => setCommentText(event.target.value)}
+                  placeholder="이 루트에 대한 의견이나 질문을 남겨보세요."
+                  maxLength={500}
+                />
+                <div>
+                  <span>{commentText.length}/500</span>
+                  <button
+                    type="button"
+                    className="button button--primary"
+                    onClick={() => void handleCreateComment()}
+                    disabled={commenting}
+                  >
+                    {commenting ? <LoaderCircle size={16} className="spin" /> : <Send size={16} />}
+                    {commenting ? "등록 중..." : "댓글 등록"}
+                  </button>
+                </div>
+              </div>
+
+              {route.commentItems.length > 0 ? (
+                <div className="community-route-comment-list">
+                  {route.commentItems.map((comment) => (
+                    <article key={comment.id} className="community-route-comment">
+                      <div className="community-route-comment__avatar">
+                        {comment.author.slice(0, 1)}
+                      </div>
+                      <div className="community-route-comment__body">
+                        <div className="community-route-comment__meta">
+                          <strong>{comment.author}</strong>
+                          <span>{formatCommentDate(comment.createdAt)}</span>
+                        </div>
+                        <p>{comment.content}</p>
+                      </div>
+                      {comment.isMine ? (
+                        <button
+                          type="button"
+                          className="community-route-comment__delete"
+                          onClick={() => void handleDeleteComment(comment.id)}
+                          disabled={deletingCommentId === comment.id}
+                        >
+                          {deletingCommentId === comment.id ? (
+                            <LoaderCircle size={14} className="spin" />
+                          ) : (
+                            <Trash2 size={14} />
+                          )}
+                        </button>
+                      ) : null}
+                    </article>
+                  ))}
+                </div>
+              ) : (
+                <div className="community-route-comments__empty">
+                  아직 댓글이 없습니다. 첫 의견을 남겨보세요.
+                </div>
+              )}
+            </article>
           </div>
 
           <aside className="community-route-side">
@@ -464,6 +657,18 @@ export function CommunityRoutePage() {
                   {route.likedByMe ? "좋아요 취소" : "좋아요"}
                 </button>
 
+                <button
+                  type="button"
+                  className="button button--secondary"
+                  onClick={() => void handleToggleBookmark()}
+                  disabled={bookmarking}
+                >
+                  {bookmarking ? <LoaderCircle size={16} className="spin" /> : <Bookmark size={16} />}
+                  {route.bookmarkedByMe ? "보관 해제" : "보관"}
+                </button>
+              </div>
+
+              <div className="community-route-action-card__buttons">
                 <button
                   type="button"
                   className="button button--secondary"

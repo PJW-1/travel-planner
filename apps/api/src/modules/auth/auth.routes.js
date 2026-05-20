@@ -2,7 +2,14 @@ import { Router } from "express";
 import { env } from "../../config/env.js";
 import { clearSessionCookie, setSessionCookie } from "./auth.cookies.js";
 import { requireAuth } from "./auth.middleware.js";
-import { getCurrentUser, loginUser, registerUser, updateCurrentUserProfile } from "./auth.service.js";
+import {
+  changeCurrentUserPassword,
+  deleteCurrentUserAccount,
+  getCurrentUser,
+  loginUser,
+  registerUser,
+  updateCurrentUserProfile,
+} from "./auth.service.js";
 import { deleteUserSession } from "./session.store.js";
 
 export const authRouter = Router();
@@ -112,6 +119,39 @@ authRouter.patch("/profile", requireAuth, async (req, res, next) => {
         createdAt: req.auth.createdAt,
         lastLoginAt: user.lastLoginAt,
       },
+    });
+  } catch (error) {
+    next(error);
+  }
+});
+
+authRouter.patch("/password", requireAuth, async (req, res, next) => {
+  try {
+    await changeCurrentUserPassword({
+      userId: req.auth.userId,
+      currentPassword: req.body?.currentPassword,
+      nextPassword: req.body?.nextPassword,
+    });
+
+    res.status(200).json({
+      message: "비밀번호를 변경했습니다.",
+    });
+  } catch (error) {
+    next(error);
+  }
+});
+
+authRouter.delete("/me", requireAuth, async (req, res, next) => {
+  try {
+    await deleteCurrentUserAccount({
+      userId: req.auth.userId,
+      password: req.body?.password,
+    });
+    await deleteUserSession(req.cookies?.[env.session.cookieName]);
+    clearSessionCookie(res);
+
+    res.status(200).json({
+      message: "회원 탈퇴가 완료되었습니다.",
     });
   } catch (error) {
     next(error);

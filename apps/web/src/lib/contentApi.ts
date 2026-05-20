@@ -66,7 +66,17 @@ export type CommunityRouteSummary = MarketRoute & {
   dateRange: string;
   publishedAt: string;
   likedByMe?: boolean;
+  bookmarkedByMe?: boolean;
   travelRegion?: string;
+  savedAt?: string;
+};
+
+export type PublishCommunityRoutePayload = {
+  tripId: string;
+  title: string;
+  description: string;
+  theme: MarketRoute["theme"];
+  tags: string[];
 };
 
 export type CommunityRouteDetail = {
@@ -85,7 +95,9 @@ export type CommunityRouteDetail = {
   tags: string[];
   publishedAt: string;
   likedByMe?: boolean;
+  bookmarkedByMe?: boolean;
   travelRegion?: string;
+  commentItems: CommunityRouteComment[];
   days: Array<{
     id: string;
     dayNumber: number;
@@ -110,6 +122,14 @@ export type CommunityRouteDetail = {
       isSaved?: boolean;
     }>;
   }>;
+};
+
+export type CommunityRouteComment = {
+  id: string;
+  author: string;
+  content: string;
+  createdAt: string;
+  isMine: boolean;
 };
 
 async function parseJson<T>(response: Response): Promise<T> {
@@ -163,6 +183,27 @@ export async function fetchCommunityRoutes() {
   }>(response);
 }
 
+export async function publishCommunityRoute(payload: PublishCommunityRoutePayload) {
+  const response = await fetch(`${API_BASE_URL}/community/routes`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    credentials: "include",
+    body: JSON.stringify(payload),
+  });
+
+  return parseJson<{
+    message: string;
+    route: {
+      routeId: string;
+      tripId: string;
+      title: string;
+      updated: boolean;
+    };
+  }>(response);
+}
+
 export async function fetchCommunityRouteDetail(routeId: string) {
   const response = await fetch(`${API_BASE_URL}/community/routes/${routeId}`, {
     method: "GET",
@@ -200,6 +241,51 @@ export async function toggleCommunityRouteLike(routeId: string) {
     message: string;
     liked: boolean;
     likeCount: number;
+  }>(response);
+}
+
+export async function toggleCommunityRouteBookmark(routeId: string) {
+  const response = await fetch(`${API_BASE_URL}/community/routes/${routeId}/bookmark`, {
+    method: "POST",
+    credentials: "include",
+  });
+
+  return parseJson<{
+    message: string;
+    bookmarked: boolean;
+  }>(response);
+}
+
+export async function createCommunityComment(routeId: string, content: string) {
+  const response = await fetch(`${API_BASE_URL}/community/routes/${routeId}/comments`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    credentials: "include",
+    body: JSON.stringify({ content }),
+  });
+
+  return parseJson<{
+    message: string;
+    comment: CommunityRouteComment;
+    commentCount: number;
+  }>(response);
+}
+
+export async function deleteCommunityComment(routeId: string, commentId: string) {
+  const response = await fetch(
+    `${API_BASE_URL}/community/routes/${routeId}/comments/${commentId}`,
+    {
+      method: "DELETE",
+      credentials: "include",
+    },
+  );
+
+  return parseJson<{
+    message: string;
+    commentId: string;
+    commentCount: number;
   }>(response);
 }
 
@@ -271,5 +357,6 @@ export async function fetchMySummary() {
   return parseJson<{
     savedPlans: SavedPlan[];
     savedAiPlaces: SavedAiPlace[];
+    savedCommunityRoutes: CommunityRouteSummary[];
   }>(response);
 }

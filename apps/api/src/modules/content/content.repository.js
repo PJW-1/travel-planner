@@ -314,6 +314,59 @@ export async function getMySummary(userId) {
     })),
   ].sort((left, right) => new Date(right.date).getTime() - new Date(left.date).getTime());
 
+  const [bookmarkedRouteRows] = await db.execute(
+    `
+      SELECT
+        crb.id,
+        cr.id AS route_id,
+        cr.trip_id,
+        cr.title,
+        cr.description,
+        cr.theme,
+        cr.like_count,
+        cr.comment_count,
+        cr.fork_count,
+        cr.published_at,
+        crb.created_at AS saved_at,
+        u.nickname AS author,
+        t.destination,
+        t.start_date,
+        t.end_date,
+        t.days,
+        t.theme_json
+      FROM community_route_bookmarks crb
+      INNER JOIN community_routes cr ON cr.id = crb.community_route_id
+      INNER JOIN users u ON u.id = cr.author_user_id
+      INNER JOIN trips t ON t.id = cr.trip_id
+      WHERE crb.user_id = ? AND cr.status = 'published'
+      ORDER BY crb.created_at DESC, crb.id DESC
+      LIMIT 12
+    `,
+    [userId],
+  );
+
+  const routeIds = bookmarkedRouteRows.map((row) => Number(row.route_id));
+  const tagsByRouteId = new Map();
+
+  if (routeIds.length > 0) {
+    const placeholders = routeIds.map(() => "?").join(", ");
+    const [tagRows] = await db.execute(
+      `
+        SELECT community_route_id, tag_name
+        FROM route_tags
+        WHERE community_route_id IN (${placeholders})
+        ORDER BY id ASC
+      `,
+      routeIds,
+    );
+
+    tagRows.forEach((row) => {
+      const current = tagsByRouteId.get(row.community_route_id) ?? [];
+      current.push(row.tag_name);
+      tagsByRouteId.set(row.community_route_id, current);
+    });
+  }
+
   return {
     savedPlans: rows.map((row) => {
       const theme = parseJsonValue(row.theme_json, {});
@@ -327,5 +380,28 @@ export async function getMySummary(userId) {
       };
     }),
     savedAiPlaces: savedPlaces,
+    savedCommunityRoutes: bookmarkedRouteRows.map((row) => {
+      const theme = parseJsonValue(row.theme_json, {});
+
+      return {
+        id: String(row.route_id),
+        tripId: String(row.trip_id),
+        title: row.title,
+        description: row.description ?? "",
+        author: row.author,
+        likes: Number(row.like_count ?? 0),
+        comments: Number(row.comment_count ?? 0),
+        forkCount: Number(row.fork_count ?? 0),
+        theme: mapCommunityTheme(row.theme),
+        tags: tagsByRouteId.get(row.route_id) ?? [],
+        destination: row.destination,
+        days: Number(row.days ?? 1),
+        dateRange: `${formatDate(row.start_date)} - ${formatDate(row.end_date).slice(5)}`,
+        publishedAt: row.published_at,
+        bookmarkedByMe: true,
+        travelRegion: theme.travelRegion ?? "korea",
+        savedAt: row.saved_at,
+      };
+    }),
   };
 }

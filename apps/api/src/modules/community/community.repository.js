@@ -51,6 +51,38 @@ function mapStopCategoryKey(value) {
   return "activity";
 }
 
+function normalizePublishText(value, fallback, maxLength = 120) {
+  const normalized = String(value ?? "").trim();
+  return (normalized || fallback).slice(0, maxLength);
+}
+
+function normalizePublishTags(tags) {
+  const values = Array.isArray(tags)
+    ? tags
+    : typeof tags === "string"
+      ? tags.split(",")
+      : [];
+
+  return values
+    .map((tag) => String(tag).replace(/^#/, "").trim())
+    .filter(Boolean)
+    .slice(0, 6);
+}
+
+function normalizeCommentContent(value) {
+  return String(value ?? "").trim().slice(0, 500);
+}
+
+function mapComment(row, userId = null) {
+  return {
+    id: String(row.id),
+    author: row.author,
+    content: row.content,
+    createdAt: row.created_at,
+    isMine: userId ? Number(row.user_id) === Number(userId) : false,
+  };
+}
+
 export async function listCommunityRoutes(userId = null) {
   const db = getDbPool();
   const [routeRows] = await db.execute(
@@ -74,6 +106,7 @@ export async function listCommunityRoutes(userId = null) {
       FROM community_routes cr
       INNER JOIN users u ON u.id = cr.author_user_id
       INNER JOIN trips t ON t.id = cr.trip_id
+      WHERE cr.status = 'published'
       ORDER BY cr.published_at DESC, cr.id DESC
     `,
   );
@@ -95,6 +128,7 @@ export async function listCommunityRoutes(userId = null) {
   });
 
   const likedRouteIds = new Set();
+  const bookmarkedRouteIds = new Set();
 
   if (userId) {
     const routeIds = routeRows.map((row) => Number(row.id));
@@ -111,6 +145,17 @@ export async function listCommunityRoutes(userId = null) {
       );
 
       likedRows.forEach((row) => likedRouteIds.add(String(row.community_route_id)));
+
+      const [bookmarkedRows] = await db.execute(
+        `
+          SELECT community_route_id
+          FROM community_route_bookmarks
+          WHERE user_id = ? AND community_route_id IN (${placeholders})
+        `,
+        [userId, ...routeIds],
+      );
+
+      bookmarkedRows.forEach((row) => bookmarkedRouteIds.add(String(row.community_route_id)));
     }
   }
 
@@ -133,6 +178,7 @@ export async function listCommunityRoutes(userId = null) {
       dateRange: formatDateRange(row.start_date, row.end_date),
       publishedAt: row.published_at,
       likedByMe: likedRouteIds.has(String(row.id)),
+      bookmarkedByMe: bookmarkedRouteIds.has(String(row.id)),
       travelRegion: theme.travelRegion ?? "korea",
     };
   });
@@ -161,7 +207,7 @@ export async function getCommunityRouteDetail(routeId, userId = null) {
       FROM community_routes cr
       INNER JOIN users u ON u.id = cr.author_user_id
       INNER JOIN trips t ON t.id = cr.trip_id
-      WHERE cr.id = ?
+      WHERE cr.id = ? AND cr.status = 'published'
       LIMIT 1
     `,
     [Number(routeId)],
@@ -221,7 +267,24 @@ export async function getCommunityRouteDetail(routeId, userId = null) {
     [route.trip_id],
   );
 
+  const [commentRows] = await db.execute(
+    `
+      SELECT
+        crc.id,
+        crc.user_id,
+        crc.content,
+        crc.created_at,
+        u.nickname AS author
+      FROM community_route_comments crc
+      INNER JOIN users u ON u.id = crc.user_id
+      WHERE crc.community_route_id = ? AND crc.status = 'active'
+      ORDER BY crc.created_at ASC, crc.id ASC
+    `,
+    [Number(routeId)],
+  );
+
   const likedRouteIds = new Set();
+  const bookmarkedRouteIds = new Set();
   const savedPlaceIds = new Set();
 
   if (userId) {
@@ -235,6 +298,17 @@ export async function getCommunityRouteDetail(routeId, userId = null) {
     );
 
     likedRows.forEach((row) => likedRouteIds.add(String(row.community_route_id)));
+
+    const [bookmarkedRows] = await db.execute(
+      `
+        SELECT community_route_id
+        FROM community_route_bookmarks
+        WHERE user_id = ? AND community_route_id = ?
+      `,
+      [userId, Number(routeId)],
+    );
+
+    bookmarkedRows.forEach((row) => bookmarkedRouteIds.add(String(row.community_route_id)));
 
     const uniquePlaceIds = [...new Set(stopRows.map((stop) => Number(stop.place_id)))];
 
@@ -298,9 +372,154 @@ export async function getCommunityRouteDetail(routeId, userId = null) {
     tags: tagRows.map((row) => row.tag_name),
     publishedAt: route.published_at,
     likedByMe: likedRouteIds.has(String(route.id)),
+    bookmarkedByMe: bookmarkedRouteIds.has(String(route.id)),
     days,
     travelRegion: theme.travelRegion ?? "korea",
+    commentItems: commentRows.map((row) => mapComment(row, userId)),
   };
+}
+
+export async function publishCommunityRoute(userId, payload) {
+  const db = getDbPool();
+  const connection = await db.getConnection();
+  const tripId = Number(payload?.tripId);
+
+  if (!Number.isFinite(tripId)) {
+    const error = new Error("공유할 일정을 선택해 주세요.");
+    error.status = 400;
+    throw error;
+  }
+
+  try {
+    const [tripRows] = await connection.execute(
+      `
+        SELECT id, title, destination
+        FROM trips
+        WHERE id = ? AND user_id = ?
+        LIMIT 1
+      `,
+      [tripId, userId],
+    );
+    const trip = tripRows[0];
+
+    if (!trip) {
+      return null;
+    }
+
+    const [stopCountRows] = await connection.execute(
+      `
+        SELECT COUNT(*) AS stop_count
+        FROM trip_stops ts
+        INNER JOIN trip_days td ON td.id = ts.trip_day_id
+        WHERE td.trip_id = ?
+      `,
+      [tripId],
+    );
+
+    if (Number(stopCountRows[0]?.stop_count ?? 0) === 0) {
+      const error = new Error("장소가 없는 일정은 커뮤니티에 공유할 수 없습니다.");
+      error.status = 400;
+      throw error;
+    }
+
+    const title = normalizePublishText(payload?.title, trip.title);
+    const description = normalizePublishText(
+      payload?.description,
+      `${trip.destination} 여행 동선을 공유합니다.`,
+      800,
+    );
+    const theme = mapCommunityTheme(payload?.theme);
+    const tags = normalizePublishTags(payload?.tags);
+
+    await connection.beginTransaction();
+
+    const [existingRows] = await connection.execute(
+      `
+        SELECT id
+        FROM community_routes
+        WHERE trip_id = ? AND author_user_id = ?
+        LIMIT 1
+      `,
+      [tripId, userId],
+    );
+
+    const existingRoute = existingRows[0];
+    const routeId = existingRoute?.id ?? createId();
+
+    if (existingRoute) {
+      await connection.execute(
+        `
+          UPDATE community_routes
+          SET
+            title = ?,
+            description = ?,
+            theme = ?,
+            status = 'published',
+            published_at = NOW()
+          WHERE id = ?
+        `,
+        [title, description, theme, routeId],
+      );
+
+      await connection.execute(`DELETE FROM route_tags WHERE community_route_id = ?`, [routeId]);
+    } else {
+      await connection.execute(
+        `
+          INSERT INTO community_routes (
+            id,
+            trip_id,
+            author_user_id,
+            title,
+            description,
+            thumbnail_url,
+            theme,
+            view_count,
+            like_count,
+            comment_count,
+            fork_count,
+            status,
+            published_at,
+            created_at
+          )
+          VALUES (?, ?, ?, ?, ?, NULL, ?, 0, 0, 0, 0, 'published', NOW(), NOW())
+        `,
+        [routeId, tripId, userId, title, description, theme],
+      );
+    }
+
+    for (const tag of tags) {
+      await connection.execute(
+        `
+          INSERT INTO route_tags (id, community_route_id, tag_name)
+          VALUES (?, ?, ?)
+        `,
+        [createId(), routeId, tag],
+      );
+    }
+
+    await connection.execute(
+      `
+        UPDATE trips
+        SET is_public = TRUE
+        WHERE id = ? AND user_id = ?
+      `,
+      [tripId, userId],
+    );
+
+    await connection.commit();
+
+    return {
+      routeId: String(routeId),
+      tripId: String(tripId),
+      title,
+      updated: Boolean(existingRoute),
+    };
+  } catch (error) {
+    await connection.rollback();
+    throw error;
+  } finally {
+    connection.release();
+  }
 }
 
 export async function importCommunityRoute(userId, routeId) {
@@ -591,6 +810,224 @@ export async function toggleCommunityRouteLike(userId, routeId) {
     return {
       liked,
       likeCount: Number(routeRows[0]?.like_count ?? 0),
+    };
+  } catch (error) {
+    await connection.rollback();
+    throw error;
+  } finally {
+    connection.release();
+  }
+}
+
+export async function toggleCommunityRouteBookmark(userId, routeId) {
+  const db = getDbPool();
+  const connection = await db.getConnection();
+
+  try {
+    await connection.beginTransaction();
+
+    const [routeRows] = await connection.execute(
+      `
+        SELECT id
+        FROM community_routes
+        WHERE id = ? AND status = 'published'
+        LIMIT 1
+      `,
+      [Number(routeId)],
+    );
+
+    if (!routeRows[0]) {
+      await connection.rollback();
+      return null;
+    }
+
+    const [existingRows] = await connection.execute(
+      `
+        SELECT id
+        FROM community_route_bookmarks
+        WHERE community_route_id = ? AND user_id = ?
+        LIMIT 1
+      `,
+      [Number(routeId), userId],
+    );
+
+    const existing = existingRows[0];
+    const bookmarked = !existing;
+
+    if (existing) {
+      await connection.execute(`DELETE FROM community_route_bookmarks WHERE id = ?`, [
+        existing.id,
+      ]);
+    } else {
+      await connection.execute(
+        `
+          INSERT INTO community_route_bookmarks (
+            id,
+            community_route_id,
+            user_id,
+            created_at
+          )
+          VALUES (?, ?, ?, NOW())
+        `,
+        [createId(), Number(routeId), userId],
+      );
+    }
+
+    await connection.commit();
+
+    return {
+      bookmarked,
+    };
+  } catch (error) {
+    await connection.rollback();
+    throw error;
+  } finally {
+    connection.release();
+  }
+}
+
+export async function createCommunityRouteComment(userId, routeId, content) {
+  const db = getDbPool();
+  const connection = await db.getConnection();
+  const normalizedContent = normalizeCommentContent(content);
+
+  if (!normalizedContent) {
+    const error = new Error("댓글 내용을 입력해 주세요.");
+    error.status = 400;
+    throw error;
+  }
+
+  try {
+    const [routeRows] = await connection.execute(
+      `
+        SELECT id
+        FROM community_routes
+        WHERE id = ? AND status = 'published'
+        LIMIT 1
+      `,
+      [Number(routeId)],
+    );
+
+    if (!routeRows[0]) {
+      return null;
+    }
+
+    await connection.beginTransaction();
+
+    const commentId = createId();
+    await connection.execute(
+      `
+        INSERT INTO community_route_comments (
+          id,
+          community_route_id,
+          user_id,
+          content,
+          status,
+          created_at,
+          updated_at
+        )
+        VALUES (?, ?, ?, ?, 'active', NOW(), NOW())
+      `,
+      [commentId, Number(routeId), userId, normalizedContent],
+    );
+
+    await connection.execute(
+      `
+        UPDATE community_routes
+        SET comment_count = comment_count + 1
+        WHERE id = ?
+      `,
+      [Number(routeId)],
+    );
+
+    const [commentRows] = await connection.execute(
+      `
+        SELECT
+          crc.id,
+          crc.user_id,
+          crc.content,
+          crc.created_at,
+          u.nickname AS author
+        FROM community_route_comments crc
+        INNER JOIN users u ON u.id = crc.user_id
+        WHERE crc.id = ?
+        LIMIT 1
+      `,
+      [commentId],
+    );
+
+    const [routeCountRows] = await connection.execute(
+      `SELECT comment_count FROM community_routes WHERE id = ? LIMIT 1`,
+      [Number(routeId)],
+    );
+
+    await connection.commit();
+
+    return {
+      comment: mapComment(commentRows[0], userId),
+      commentCount: Number(routeCountRows[0]?.comment_count ?? 0),
+    };
+  } catch (error) {
+    await connection.rollback();
+    throw error;
+  } finally {
+    connection.release();
+  }
+}
+
+export async function deleteCommunityRouteComment(userId, routeId, commentId) {
+  const db = getDbPool();
+  const connection = await db.getConnection();
+
+  try {
+    await connection.beginTransaction();
+
+    const [commentRows] = await connection.execute(
+      `
+        SELECT id
+        FROM community_route_comments
+        WHERE id = ?
+          AND community_route_id = ?
+          AND user_id = ?
+          AND status = 'active'
+        LIMIT 1
+      `,
+      [Number(commentId), Number(routeId), userId],
+    );
+
+    if (!commentRows[0]) {
+      await connection.rollback();
+      return null;
+    }
+
+    await connection.execute(
+      `
+        UPDATE community_route_comments
+        SET status = 'deleted', updated_at = NOW()
+        WHERE id = ?
+      `,
+      [Number(commentId)],
+    );
+
+    await connection.execute(
+      `
+        UPDATE community_routes
+        SET comment_count = GREATEST(comment_count - 1, 0)
+        WHERE id = ?
+      `,
+      [Number(routeId)],
+    );
+
+    const [routeCountRows] = await connection.execute(
+      `SELECT comment_count FROM community_routes WHERE id = ? LIMIT 1`,
+      [Number(routeId)],
+    );
+
+    await connection.commit();
+
+    return {
+      commentId: String(commentId),
+      commentCount: Number(routeCountRows[0]?.comment_count ?? 0),
     };
   } catch (error) {
     await connection.rollback();

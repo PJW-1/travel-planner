@@ -722,6 +722,18 @@ function buildWalkClusters(nodes) {
   }));
 }
 
+function buildClusterMap(clusters) {
+  const clusterByStopId = new Map();
+
+  for (const cluster of clusters) {
+    for (const node of cluster.nodes) {
+      clusterByStopId.set(node.id, cluster.id);
+    }
+  }
+
+  return clusterByStopId;
+}
+
 function optimizePublicDay(nodes, transportType, startAnchor, endAnchor) {
   const costGetter = (from, to) => getTravelLeg(from, to, transportType);
   const orderedNodes = nearestNeighborRoute(nodes, startAnchor, endAnchor, costGetter);
@@ -750,6 +762,7 @@ function optimizePublicDay(nodes, transportType, startAnchor, endAnchor) {
 
 function optimizeCarDay(nodes, startAnchor, endAnchor) {
   const clusters = buildWalkClusters(nodes);
+  const clusterByStopId = buildClusterMap(clusters);
   const clusterRoute = nearestNeighborRoute(
     clusters.map((cluster) => ({
       id: cluster.id,
@@ -762,7 +775,6 @@ function optimizeCarDay(nodes, startAnchor, endAnchor) {
   );
 
   const orderedNodes = [];
-  const clusterByStopId = new Map();
 
   for (const clusterPoint of clusterRoute) {
     const cluster = clusterPoint.cluster;
@@ -774,7 +786,6 @@ function optimizeCarDay(nodes, startAnchor, endAnchor) {
     );
 
     for (const node of internalRoute) {
-      clusterByStopId.set(node.id, cluster.id);
       orderedNodes.push(node);
     }
   }
@@ -826,6 +837,8 @@ function orderStopsByRequestedIds(nodes, requestedIds = []) {
 
 function optimizeManualDay(nodes, transportType, startAnchor, endAnchor, requestedIds = []) {
   const orderedNodes = orderStopsByRequestedIds(nodes, requestedIds);
+  const clusters = transportType === "car" ? buildWalkClusters(nodes) : [];
+  const clusterByStopId = transportType === "car" ? buildClusterMap(clusters) : null;
   const legs = orderedNodes.map((node, index) => {
     const nextNode = orderedNodes[index + 1];
 
@@ -833,7 +846,12 @@ function optimizeManualDay(nodes, transportType, startAnchor, endAnchor, request
       return { distanceKm: 0, minutes: 0, kind: transportType };
     }
 
-    return getTravelLeg(node, nextNode, transportType);
+    const sameCluster =
+      transportType === "car" &&
+      clusterByStopId &&
+      clusterByStopId.get(node.id) === clusterByStopId.get(nextNode.id);
+
+    return getTravelLeg(node, nextNode, transportType, { internalWalk: sameCluster });
   });
 
   const startLeg =
@@ -850,8 +868,8 @@ function optimizeManualDay(nodes, transportType, startAnchor, endAnchor, request
     legs,
     startLeg,
     endLeg,
-    clusterCount: 0,
-    clusterByStopId: null,
+    clusterCount: clusters.filter((cluster) => cluster.nodes.length > 1).length,
+    clusterByStopId,
   };
 }
 

@@ -1,4 +1,5 @@
 import { env } from "../../config/env.js";
+import { findUserById } from "./auth.repository.js";
 import { getUserSession } from "./session.store.js";
 
 export async function requireAuth(req, _res, next) {
@@ -8,6 +9,14 @@ export async function requireAuth(req, _res, next) {
 
     if (!session) {
       const error = new Error("로그인이 필요합니다.");
+      error.status = 401;
+      throw error;
+    }
+
+    const user = await findUserById(session.userId);
+
+    if (!user || user.status !== "active") {
+      const error = new Error("다시 로그인해 주세요.");
       error.status = 401;
       throw error;
     }

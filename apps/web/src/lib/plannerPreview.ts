@@ -5,6 +5,8 @@ import type {
   TripLocationPoint,
 } from "./tripsApi";
 
+const WALK_CLUSTER_MAX_DISTANCE_KM = 0.7;
+
 function toRadians(value: number) {
   return (value * Math.PI) / 180;
 }
@@ -71,6 +73,14 @@ function estimateTravelMinutes(
   const walkMinutes = Math.max(3, Math.round(distanceKm * 14));
 
   return distanceKm <= 0.8 && walkMinutes <= transitMinutes + 2 ? walkMinutes : transitMinutes;
+}
+
+function getPreviewSegmentMode(transportType: string, distanceKm: number, allowCarWalk = false) {
+  if (allowCarWalk && transportType === "car" && distanceKm <= WALK_CLUSTER_MAX_DISTANCE_KM) {
+    return "walk";
+  }
+
+  return transportType || "walk";
 }
 
 function buildStraightSegment(
@@ -169,7 +179,8 @@ export function buildPreviewTripDetail(
     }
 
     const distanceKm = roundTo(haversineDistanceKm(stop, nextStop), 2);
-    const travelMinutes = estimateTravelMinutes(distanceKm, stop.transportType ?? "walk");
+    const segmentMode = getPreviewSegmentMode(stop.transportType ?? "walk", distanceKm, true);
+    const travelMinutes = estimateTravelMinutes(distanceKm, segmentMode);
     const updatedStop = {
       ...stop,
       stopOrder: index + 1,
@@ -182,7 +193,7 @@ export function buildPreviewTripDetail(
       buildStraightSegment(
         `${stop.id}-${nextStop.id}`,
         `${stop.name} -> ${nextStop.name}`,
-        stop.transportType ?? "walk",
+        segmentMode,
         stop,
         nextStop,
       ),

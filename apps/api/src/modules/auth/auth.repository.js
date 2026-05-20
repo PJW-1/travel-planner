@@ -42,6 +42,39 @@ export async function findUserByEmail(email) {
   return mapUser(rows[0]);
 }
 
+export async function updateUserPassword(userId, passwordHash) {
+  const db = getDbPool();
+  await db.execute(
+    `
+      UPDATE users
+      SET password_hash = ?, updated_at = NOW()
+      WHERE id = ? AND status = 'active'
+    `,
+    [passwordHash, userId],
+  );
+
+  return findUserById(userId);
+}
+
+export async function markUserDeleted(userId, { email, passwordHash }) {
+  const db = getDbPool();
+  const [result] = await db.execute(
+    `
+      UPDATE users
+      SET
+        email = ?,
+        nickname = '탈퇴한 사용자',
+        password_hash = ?,
+        status = 'deleted',
+        updated_at = NOW()
+      WHERE id = ? AND status = 'active'
+    `,
+    [email, passwordHash, userId],
+  );
+
+  return result.affectedRows > 0;
+}
+
 export async function createLocalUser({ email, nickname, passwordHash }) {
   const db = getDbPool();
   const [result] = await db.execute(
