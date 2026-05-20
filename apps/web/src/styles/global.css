@@ -3154,7 +3154,6 @@ button {
 
 .my-hero__eyebrow,
 .my-section-card__header span,
-.my-account-strip span,
 .my-stat-card span,
 .account-modal__header span {
   display: inline-flex;
@@ -3172,15 +3171,13 @@ button {
   letter-spacing: -0.07em;
 }
 
-.my-hero p,
-.my-account-strip p {
+.my-hero p {
   margin: 0;
   color: var(--text-soft);
   line-height: 1.65;
 }
 
-.my-hero__actions,
-.my-account-strip__actions {
+.my-hero__actions {
   position: relative;
   z-index: 1;
   display: flex;
@@ -3229,8 +3226,7 @@ button {
   gap: 18px;
 }
 
-.my-section-card__header,
-.my-account-strip {
+.my-section-card__header {
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -3238,7 +3234,6 @@ button {
 }
 
 .my-section-card__header h2,
-.my-account-strip h2,
 .account-modal__header h2 {
   margin: 4px 0 0;
   font-size: clamp(1.35rem, 2vw, 2rem);
@@ -3283,6 +3278,19 @@ button {
   letter-spacing: -0.03em;
 }
 
+.my-list-item__badge {
+  display: inline-flex;
+  width: fit-content;
+  margin-bottom: 6px;
+  padding: 5px 9px;
+  border-radius: 999px;
+  color: #1d4ed8;
+  background: rgba(219, 234, 254, 0.82);
+  font-size: 0.72rem;
+  font-weight: 900;
+  letter-spacing: 0.02em;
+}
+
 .my-list-item__body p,
 .my-list-item__body small {
   display: block;
@@ -3296,25 +3304,6 @@ button {
   justify-content: flex-end;
   gap: 8px;
   flex-wrap: wrap;
-}
-
-.my-account-strip {
-  padding: 22px;
-  background:
-    linear-gradient(135deg, rgba(15, 23, 42, 0.92), rgba(30, 64, 175, 0.84)),
-    rgba(15, 23, 42, 0.9);
-  color: white;
-}
-
-.my-account-strip span,
-.my-account-strip p {
-  color: rgba(255, 255, 255, 0.72);
-}
-
-.my-account-strip .button--secondary {
-  color: white;
-  background: rgba(255, 255, 255, 0.12);
-  border-color: rgba(255, 255, 255, 0.18);
 }
 
 .account-modal {
@@ -3367,6 +3356,16 @@ button {
 .account-modal__header--danger span,
 .account-modal__header--danger h2 {
   color: #b42318;
+}
+
+.account-modal__danger-box {
+  display: grid;
+  gap: 14px;
+  margin-top: 4px;
+  padding: 18px;
+  border-radius: 22px;
+  background: rgba(254, 242, 242, 0.82);
+  border: 1px solid rgba(248, 113, 113, 0.22);
 }
 
 .two-column-layout--profile {
@@ -3681,8 +3680,7 @@ button {
   .login-alt-actions,
   .planner-vault__current,
   .my-hero,
-  .my-section-card__header,
-  .my-account-strip {
+  .my-section-card__header {
     flex-direction: column;
   }
 
@@ -3691,13 +3689,11 @@ button {
   }
 
   .my-hero,
-  .my-section-card__header,
-  .my-account-strip {
+  .my-section-card__header {
     align-items: stretch;
   }
 
-  .my-hero__actions,
-  .my-account-strip__actions {
+  .my-hero__actions {
     justify-content: flex-start;
   }
 

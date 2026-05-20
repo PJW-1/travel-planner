@@ -8,7 +8,6 @@ import {
   PencilLine,
   Plus,
   ShieldAlert,
-  Settings,
   Trash2,
   UserRound,
   X,
@@ -35,7 +34,7 @@ type ProfileState = {
   lastLoginAt: string | null;
 };
 
-type AccountDialog = "profile" | "password" | "danger" | null;
+type AccountDialog = "profile" | "password" | null;
 
 export function MyPage() {
   const navigate = useNavigate();
@@ -319,9 +318,9 @@ export function MyPage() {
 
       <section className="my-overview-grid">
         <article className="my-stat-card">
-          <span>저장 일정</span>
-          <strong>{savedPlans.length}</strong>
-          <p>다시 편집 가능한 여행 계획</p>
+          <span>여행 보관함</span>
+          <strong>{savedPlans.length + savedRoutes.length}</strong>
+          <p>내 일정과 보관한 커뮤니티 루트</p>
         </article>
         <article className="my-stat-card">
           <span>저장 장소</span>
@@ -329,9 +328,9 @@ export function MyPage() {
           <p>AI 랩과 커뮤니티에서 담은 장소</p>
         </article>
         <article className="my-stat-card">
-          <span>보관 루트</span>
-          <strong>{savedRoutes.length}</strong>
-          <p>커뮤니티에서 저장한 여행 루트</p>
+          <span>내 일정</span>
+          <strong>{savedPlans.length}</strong>
+          <p>직접 만들거나 가져온 여행 계획</p>
         </article>
       </section>
 
@@ -339,20 +338,21 @@ export function MyPage() {
         <article className="panel my-section-card">
           <div className="my-section-card__header">
             <div>
-              <span>Plans</span>
-              <h2>저장된 일정</h2>
+              <span>Travel Vault</span>
+              <h2>내 여행 보관함</h2>
             </div>
             <Link to="/setup" className="button button--secondary">
               새 일정 만들기
             </Link>
           </div>
 
-          {savedPlans.length > 0 ? (
+          {savedPlans.length + savedRoutes.length > 0 ? (
             <div className="my-item-list">
               {savedPlans.map((plan) => (
                 <article key={plan.id} className="my-list-item">
                   <div className="my-list-item__icon">{plan.emoji}</div>
                   <div className="my-list-item__body">
+                    <span className="my-list-item__badge">내 일정</span>
                     <h3>{plan.title}</h3>
                     <p>
                       {plan.date} | 장소 {plan.placeCount}개
@@ -374,10 +374,41 @@ export function MyPage() {
                   </div>
                 </article>
               ))}
+              {savedRoutes.map((route) => (
+                <article key={route.id} className="my-list-item">
+                  <div className="my-list-item__icon">
+                    <Bookmark size={18} />
+                  </div>
+                  <div className="my-list-item__body">
+                    <span className="my-list-item__badge">커뮤니티 루트</span>
+                    <h3>{route.title}</h3>
+                    <p>
+                      {route.destination} | {route.days}박 {route.days + 1}일
+                    </p>
+                    <small>
+                      {route.author} · 좋아요 {route.likes} · 댓글 {route.comments}
+                    </small>
+                  </div>
+                  <div className="my-list-item__actions">
+                    <Link to={`/community/${route.id}`} className="button button--secondary">
+                      상세 보기
+                    </Link>
+                    <button
+                      type="button"
+                      className="button button--primary"
+                      onClick={() => void handleImportSavedRoute(route.id)}
+                      disabled={importingRouteId === route.id}
+                    >
+                      <GitFork size={16} />
+                      {importingRouteId === route.id ? "가져오는 중..." : "가져오기"}
+                    </button>
+                  </div>
+                </article>
+              ))}
             </div>
           ) : (
             <div className="empty-state">
-              <p>아직 저장된 일정이 없습니다. 플래너에서 결과를 저장해 보세요.</p>
+              <p>아직 보관한 여행이 없습니다. 새 일정을 만들거나 커뮤니티 루트를 저장해 보세요.</p>
             </div>
           )}
         </article>
@@ -436,90 +467,6 @@ export function MyPage() {
           )}
         </article>
 
-        <article className="panel my-section-card">
-          <div className="my-section-card__header">
-            <div>
-              <span>Routes</span>
-              <h2>보관한 커뮤니티 루트</h2>
-            </div>
-            <Link to="/community" className="button button--secondary">
-              커뮤니티 보기
-            </Link>
-          </div>
-
-          {savedRoutes.length > 0 ? (
-            <div className="my-item-list">
-              {savedRoutes.map((route) => (
-                <article key={route.id} className="my-list-item">
-                  <div className="my-list-item__icon">
-                    <Bookmark size={18} />
-                  </div>
-                  <div className="my-list-item__body">
-                    <h3>{route.title}</h3>
-                    <p>
-                      {route.destination} | {route.days}박 {route.days + 1}일
-                    </p>
-                    <small>
-                      {route.author} · 좋아요 {route.likes} · 댓글 {route.comments}
-                    </small>
-                  </div>
-                  <div className="my-list-item__actions">
-                    <Link to={`/community/${route.id}`} className="button button--secondary">
-                      상세 보기
-                    </Link>
-                    <button
-                      type="button"
-                      className="button button--primary"
-                      onClick={() => void handleImportSavedRoute(route.id)}
-                      disabled={importingRouteId === route.id}
-                    >
-                      <GitFork size={16} />
-                      {importingRouteId === route.id ? "가져오는 중..." : "가져오기"}
-                    </button>
-                  </div>
-                </article>
-              ))}
-            </div>
-          ) : (
-            <div className="empty-state">
-              <p>아직 보관한 커뮤니티 루트가 없습니다. 마음에 드는 루트를 저장해 보세요.</p>
-            </div>
-          )}
-        </article>
-      </section>
-
-      <section className="panel my-account-strip">
-        <div>
-          <span>Account</span>
-          <h2>계정 관리</h2>
-          <p>자주 쓰지 않는 설정은 필요할 때만 열어서 관리할 수 있게 정리했습니다.</p>
-        </div>
-        <div className="my-account-strip__actions">
-          <button
-            type="button"
-            className="button button--secondary"
-            onClick={() => openAccountDialog("profile")}
-          >
-            <Settings size={16} />
-            프로필 수정
-          </button>
-          <button
-            type="button"
-            className="button button--secondary"
-            onClick={() => openAccountDialog("password")}
-          >
-            <LockKeyhole size={16} />
-            비밀번호 변경
-          </button>
-          <button
-            type="button"
-            className="button button--ghost"
-            onClick={() => openAccountDialog("danger")}
-          >
-            <ShieldAlert size={16} />
-            회원 탈퇴
-          </button>
-        </div>
       </section>
 
       {accountDialog ? (
@@ -571,6 +518,33 @@ export function MyPage() {
                   <PencilLine size={16} />
                   {isSavingProfile ? "저장 중..." : "프로필 저장"}
                 </button>
+
+                <div className="account-modal__danger-box">
+                  <div className="account-modal__header account-modal__header--danger">
+                    <span>Danger Zone</span>
+                    <h2>회원 탈퇴</h2>
+                    <p>탈퇴하면 현재 계정으로 다시 로그인할 수 없습니다.</p>
+                  </div>
+                  <label className="profile-field">
+                    <span>현재 비밀번호</span>
+                    <input
+                      type="password"
+                      value={deletePassword}
+                      onChange={(event) => setDeletePassword(event.target.value)}
+                      placeholder="탈퇴 확인용 비밀번호"
+                      autoComplete="current-password"
+                    />
+                  </label>
+                  <button
+                    type="button"
+                    className="button button--ghost"
+                    onClick={handleDeleteAccount}
+                    disabled={isDeletingAccount}
+                  >
+                    <Trash2 size={16} />
+                    {isDeletingAccount ? "탈퇴 처리 중..." : "회원 탈퇴"}
+                  </button>
+                </div>
               </>
             ) : null}
 
@@ -623,34 +597,6 @@ export function MyPage() {
               </>
             ) : null}
 
-            {accountDialog === "danger" ? (
-              <>
-                <div className="account-modal__header account-modal__header--danger">
-                  <span>Danger Zone</span>
-                  <h2>회원 탈퇴</h2>
-                  <p>탈퇴하면 현재 계정으로 다시 로그인할 수 없습니다.</p>
-                </div>
-                <label className="profile-field">
-                  <span>현재 비밀번호</span>
-                  <input
-                    type="password"
-                    value={deletePassword}
-                    onChange={(event) => setDeletePassword(event.target.value)}
-                    placeholder="탈퇴 확인용 비밀번호"
-                    autoComplete="current-password"
-                  />
-                </label>
-                <button
-                  type="button"
-                  className="button button--ghost"
-                  onClick={handleDeleteAccount}
-                  disabled={isDeletingAccount}
-                >
-                  <Trash2 size={16} />
-                  {isDeletingAccount ? "탈퇴 처리 중..." : "회원 탈퇴"}
-                </button>
-              </>
-            ) : null}
           </section>
         </div>
       ) : null}
