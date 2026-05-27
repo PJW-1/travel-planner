@@ -1,43 +1,19 @@
 import { useEffect, useState } from "react";
-import { ChevronRight, MapPin, Star } from "lucide-react";
+import { ChevronRight, Heart, MapPin } from "lucide-react";
 import { Link } from "react-router-dom";
+import { fetchHomeContent, type PopularDestination } from "@/lib/contentApi";
 
-const popularDestinations = [
+const fallbackDestinations: PopularDestination[] = [
   {
-    id: 1,
-    city: "파리",
-    country: "프랑스",
-    title: "에펠탑이 보이는 로맨틱한 거리",
-    rating: "4.9",
+    id: "fallback-1",
+    title: "성수동 힙플레이스 완벽 정복",
+    description: "커뮤니티에서 좋아요를 많이 받은 여행 루트가 여기에 표시됩니다.",
+    destination: "서울",
+    author: "TripFlow",
+    likes: 0,
+    theme: "urban",
     imageUrl:
       "https://images.unsplash.com/photo-1499856871958-5b9627545d1a?auto=format&fit=crop&q=80&w=900",
-  },
-  {
-    id: 2,
-    city: "도쿄",
-    country: "일본",
-    title: "전통과 현대가 공존하는 도심",
-    rating: "4.8",
-    imageUrl:
-      "https://images.unsplash.com/photo-1540959733332-eab4deabeeaf?auto=format&fit=crop&q=80&w=900",
-  },
-  {
-    id: 3,
-    city: "발리",
-    country: "인도네시아",
-    title: "여유로운 휴양지에서의 하루",
-    rating: "4.9",
-    imageUrl:
-      "https://images.unsplash.com/photo-1537996194471-e657df975ab4?auto=format&fit=crop&q=80&w=900",
-  },
-  {
-    id: 4,
-    city: "뉴욕",
-    country: "미국",
-    title: "잠들지 않는 화려한 도시",
-    rating: "4.7",
-    imageUrl:
-      "https://images.unsplash.com/photo-1496442226666-8d4d0e62e6e9?auto=format&fit=crop&q=80&w=900",
   },
 ];
 
@@ -46,6 +22,33 @@ const heroBackgroundImage =
 
 export function HomePage() {
   const [currentSlide, setCurrentSlide] = useState(0);
+  const [popularDestinations, setPopularDestinations] =
+    useState<PopularDestination[]>(fallbackDestinations);
+
+  useEffect(() => {
+    let isMounted = true;
+
+    async function loadHome() {
+      try {
+        const data = await fetchHomeContent();
+
+        if (isMounted && data.popularDestinations.length > 0) {
+          setPopularDestinations(data.popularDestinations);
+          setCurrentSlide(0);
+        }
+      } catch {
+        if (isMounted) {
+          setPopularDestinations(fallbackDestinations);
+        }
+      }
+    }
+
+    void loadHome();
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
 
   useEffect(() => {
     const timer = window.setInterval(() => {
@@ -55,7 +58,7 @@ export function HomePage() {
     return () => {
       window.clearInterval(timer);
     };
-  }, []);
+  }, [popularDestinations.length]);
 
   return (
     <div className="home-minimal">
@@ -67,11 +70,11 @@ export function HomePage() {
 
         <div className="home-minimal__content">
           <div className="home-minimal__copy">
-            <p className="home-minimal__eyebrow">계획부터 예약까지, 물 흐르듯 쉬운</p>
+            <p className="home-minimal__eyebrow">계획부터 기록까지, 여행을 더 쉽게</p>
             <h1>
-              나만의 완벽한 여행 앱
+              나만의 여행을
               <br />
-              트립플로우
+              TripFlow로
             </h1>
 
             <Link to="/setup" className="home-minimal__cta">
@@ -90,32 +93,33 @@ export function HomePage() {
               </div>
 
               {popularDestinations.map((destination, index) => (
-                <div
+                <Link
                   key={destination.id}
+                  to={`/community/${destination.id}`}
                   className={
                     index === currentSlide
                       ? "home-minimal__slide is-active"
                       : "home-minimal__slide"
                   }
                 >
-                  <img src={destination.imageUrl} alt={destination.city} />
+                  <img src={destination.imageUrl} alt={destination.destination} />
 
                   <div className="home-minimal__info">
                     <div className="home-minimal__meta">
                       <span>
                         <MapPin size={14} />
-                        {destination.country}
+                        {destination.destination}
                       </span>
                       <strong>
-                        <Star size={14} />
-                        {destination.rating}
+                        <Heart size={14} />
+                        {destination.likes.toLocaleString("ko-KR")}
                       </strong>
                     </div>
 
-                    <h2>{destination.city}</h2>
+                    <h2>{destination.destination}</h2>
                     <p>{destination.title}</p>
                   </div>
-                </div>
+                </Link>
               ))}
 
               <div className="home-minimal__pagination">
@@ -129,7 +133,7 @@ export function HomePage() {
                         : "home-minimal__dot"
                     }
                     onClick={() => setCurrentSlide(index)}
-                    aria-label={`${destination.city} 보기`}
+                    aria-label={`${destination.destination} 보기`}
                   />
                 ))}
               </div>

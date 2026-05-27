@@ -8,6 +8,17 @@ type UpcomingTrip = {
   description: string;
 };
 
+export type PopularDestination = {
+  id: string;
+  title: string;
+  description: string;
+  destination: string;
+  author: string;
+  likes: number;
+  theme: MarketRoute["theme"];
+  imageUrl: string;
+};
+
 type PlannerInsight = {
   iconKey: "footprints" | "clock";
   title: string;
@@ -72,11 +83,12 @@ export type CommunityRouteSummary = MarketRoute & {
 };
 
 export type PublishCommunityRoutePayload = {
-  tripId: string;
+  tripId?: string;
   title: string;
   description: string;
   theme: MarketRoute["theme"];
   tags: string[];
+  destination?: string;
 };
 
 export type CommunityRouteDetail = {
@@ -155,6 +167,7 @@ export async function fetchHomeContent() {
     upcomingTrip: UpcomingTrip;
     tripConfig: TripConfig;
     trendSpots: TrendSpot[];
+    popularDestinations: PopularDestination[];
   }>(response);
 }
 
@@ -299,7 +312,7 @@ export async function saveCommunityPlace(placeId: string) {
 }
 
 export async function fetchAiLabOverview() {
-  const response = await fetch(`${API_BASE_URL}/ai-lab/overview`, {
+  const response = await fetch(`${API_BASE_URL}/place-extraction/overview`, {
     method: "GET",
     credentials: "include",
   });
@@ -314,7 +327,7 @@ export async function runAiExtraction(payload: {
   youtubeUrl: string;
   travelRegion: string;
 }) {
-  const response = await fetch(`${API_BASE_URL}/ai-lab/extract`, {
+  const response = await fetch(`${API_BASE_URL}/place-extraction/extract`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
@@ -334,7 +347,7 @@ export async function runAiExtraction(payload: {
 }
 
 export async function saveAiPlace(placeId: string) {
-  const response = await fetch(`${API_BASE_URL}/ai-lab/places/${placeId}/save`, {
+  const response = await fetch(`${API_BASE_URL}/place-extraction/places/${placeId}/save`, {
     method: "POST",
     credentials: "include",
   });

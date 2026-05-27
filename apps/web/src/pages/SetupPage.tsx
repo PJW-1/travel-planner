@@ -1074,24 +1074,6 @@ export function SetupPage() {
 
             <div className="planner-form planner-form--two-column">
               <label className="planner-field">
-                <span>카테고리</span>
-                <select
-                  value={stopForm.categoryKey}
-                  onChange={(event) =>
-                    setStopForm((current) => ({
-                      ...current,
-                      categoryKey: event.target.value as StopFormState["categoryKey"],
-                    }))
-                  }
-                >
-                  <option value="transport">교통</option>
-                  <option value="cafe">카페</option>
-                  <option value="activity">액티비티</option>
-                  <option value="view">뷰 포인트</option>
-                </select>
-              </label>
-
-              <label className="planner-field">
                 <span>일차</span>
                 <select
                   value={stopForm.dayNumber}

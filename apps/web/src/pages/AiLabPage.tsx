@@ -67,7 +67,7 @@ export function AiLabPage() {
       setError(
         submitError instanceof Error
           ? submitError.message
-          : "AI 분석 중 오류가 발생했습니다.",
+          : "장소 추출 중 오류가 발생했습니다.",
       );
     } finally {
       setIsSubmitting(false);

@@ -113,6 +113,7 @@ export async function createUserSession(user, options = {}) {
     nickname: user.nickname,
     provider: user.provider,
     status: user.status,
+    role: user.role ?? "user",
     createdAt: new Date().toISOString(),
     ttlSeconds,
     rememberMe: Boolean(options.rememberMe),

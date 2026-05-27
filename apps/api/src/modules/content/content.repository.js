@@ -43,6 +43,20 @@ function mapCommunityTheme(value) {
   return "urban";
 }
 
+function getCommunityThemeImage(theme) {
+  switch (mapCommunityTheme(theme)) {
+    case "cafe":
+      return "https://images.unsplash.com/photo-1509042239860-f550ce710b93?auto=format&fit=crop&q=80&w=900";
+    case "walking":
+      return "https://images.unsplash.com/photo-1500534314209-a25ddb2bd429?auto=format&fit=crop&q=80&w=900";
+    case "coast":
+      return "https://images.unsplash.com/photo-1507525428034-b723cf961d3e?auto=format&fit=crop&q=80&w=900";
+    case "urban":
+    default:
+      return "https://images.unsplash.com/photo-1499856871958-5b9627545d1a?auto=format&fit=crop&q=80&w=900";
+  }
+}
+
 function mapCategoryKey(value) {
   if (value === "transport" || value === "cafe" || value === "activity" || value === "view") {
     return value;
@@ -86,6 +100,26 @@ export async function getHomeContent() {
     `,
   );
 
+  const [popularRows] = await db.execute(
+    `
+      SELECT
+        cr.id,
+        cr.title,
+        cr.description,
+        cr.like_count,
+        cr.theme,
+        cr.thumbnail_url,
+        u.nickname AS author,
+        t.destination
+      FROM community_routes cr
+      INNER JOIN users u ON u.id = cr.author_user_id
+      INNER JOIN trips t ON t.id = cr.trip_id
+      WHERE cr.status = 'published'
+      ORDER BY cr.like_count DESC, cr.comment_count DESC, cr.published_at DESC, cr.id DESC
+      LIMIT 3
+    `,
+  );
+
   return {
     upcomingTrip: {
       month: trip ? formatMonth(trip.start_date) : "",
@@ -106,6 +140,16 @@ export async function getHomeContent() {
       title: row.title,
       rank: row.rank_no,
       tag: row.tag_name,
+    })),
+    popularDestinations: popularRows.map((row) => ({
+      id: String(row.id),
+      title: row.title,
+      description: row.description ?? "",
+      destination: row.destination,
+      author: row.author,
+      likes: Number(row.like_count ?? 0),
+      theme: mapCommunityTheme(row.theme),
+      imageUrl: row.thumbnail_url || getCommunityThemeImage(row.theme),
     })),
   };
 }

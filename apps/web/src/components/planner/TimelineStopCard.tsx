@@ -71,7 +71,6 @@ export function TimelineStopCard({
         <div className="timeline-stop__header">
           <div>
             <h3>{stop.name}</h3>
-            <p>{stop.category}</p>
           </div>
           <div className="timeline-stop__header-actions">
             {onOpenDetail ? (

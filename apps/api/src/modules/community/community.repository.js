@@ -56,6 +56,10 @@ function normalizePublishText(value, fallback, maxLength = 120) {
   return (normalized || fallback).slice(0, maxLength);
 }
 
+function formatSqlDate(date = new Date()) {
+  return date.toISOString().slice(0, 10);
+}
+
 function normalizePublishTags(tags) {
   const values = Array.isArray(tags)
     ? tags
@@ -382,16 +386,18 @@ export async function getCommunityRouteDetail(routeId, userId = null) {
 export async function publishCommunityRoute(userId, payload) {
   const db = getDbPool();
   const connection = await db.getConnection();
-  const tripId = Number(payload?.tripId);
+  const requestedTripId = Number(payload?.tripId);
+  const hasTripId = Number.isFinite(requestedTripId) && requestedTripId > 0;
+  let tripId = requestedTripId;
 
-  if (!Number.isFinite(tripId)) {
+  if (false) {
     const error = new Error("공유할 일정을 선택해 주세요.");
     error.status = 400;
     throw error;
   }
 
   try {
-    const [tripRows] = await connection.execute(
+    const [tripRows] = hasTripId ? await connection.execute(
       `
         SELECT id, title, destination
         FROM trips
@@ -399,14 +405,14 @@ export async function publishCommunityRoute(userId, payload) {
         LIMIT 1
       `,
       [tripId, userId],
-    );
-    const trip = tripRows[0];
+    ) : [[]];
+    let trip = tripRows[0];
 
-    if (!trip) {
+    if (hasTripId && !trip) {
       return null;
     }
 
-    const [stopCountRows] = await connection.execute(
+    const [stopCountRows] = hasTripId ? await connection.execute(
       `
         SELECT COUNT(*) AS stop_count
         FROM trip_stops ts
@@ -414,15 +420,23 @@ export async function publishCommunityRoute(userId, payload) {
         WHERE td.trip_id = ?
       `,
       [tripId],
-    );
+    ) : [[{ stop_count: 0 }]];
 
-    if (Number(stopCountRows[0]?.stop_count ?? 0) === 0) {
+    if (false && Number(stopCountRows[0]?.stop_count ?? 0) === 0) {
       const error = new Error("장소가 없는 일정은 커뮤니티에 공유할 수 없습니다.");
       error.status = 400;
       throw error;
     }
 
-    const title = normalizePublishText(payload?.title, trip.title);
+    const destination = normalizePublishText(
+      payload?.destination,
+      trip?.destination ?? "커뮤니티",
+      100,
+    );
+    const title = normalizePublishText(payload?.title, trip?.title ?? "새 커뮤니티 게시글");
+    if (!trip) {
+      trip = { destination };
+    }
     const description = normalizePublishText(
       payload?.description,
       `${trip.destination} 여행 동선을 공유합니다.`,
@@ -433,7 +447,57 @@ export async function publishCommunityRoute(userId, payload) {
 
     await connection.beginTransaction();
 
-    const [existingRows] = await connection.execute(
+    if (!hasTripId) {
+      const today = formatSqlDate();
+      tripId = createId();
+
+      await connection.execute(
+        `
+          INSERT INTO trips (
+            id,
+            user_id,
+            title,
+            destination,
+            start_date,
+            end_date,
+            days,
+            theme_json,
+            status,
+            is_public,
+            cover_image_url,
+            featured_home,
+            featured_planner,
+            featured_saved
+          )
+          VALUES (?, ?, ?, ?, ?, ?, 1, ?, 'published', TRUE, NULL, FALSE, FALSE, FALSE)
+        `,
+        [
+          tripId,
+          userId,
+          title,
+          destination,
+          today,
+          today,
+          JSON.stringify({
+            lunchTime: "12:00",
+            dinnerTime: "18:30",
+            tags,
+            placeCount: 0,
+            travelRegion: "korea",
+          }),
+        ],
+      );
+
+      await connection.execute(
+        `
+          INSERT INTO trip_days (id, trip_id, day_number, date, title, notes)
+          VALUES (?, ?, 1, ?, 'Day 1', NULL)
+        `,
+        [createId(), tripId, today],
+      );
+    }
+
+    const [existingRows] = hasTripId ? await connection.execute(
       `
         SELECT id
         FROM community_routes
@@ -441,7 +505,7 @@ export async function publishCommunityRoute(userId, payload) {
         LIMIT 1
       `,
       [tripId, userId],
-    );
+    ) : [[]];
 
     const existingRoute = existingRows[0];
     const routeId = existingRoute?.id ?? createId();

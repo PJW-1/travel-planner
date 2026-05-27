@@ -22,6 +22,7 @@ function sanitizeUser(user) {
     nickname: user.nickname,
     provider: user.provider,
     status: user.status,
+    role: user.role ?? "user",
     lastLoginAt: user.lastLoginAt ?? null,
   };
 }

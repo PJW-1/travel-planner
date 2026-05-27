@@ -3,6 +3,7 @@ import { AppShell } from "./shell/AppShell";
 import { HomePage } from "@/pages/HomePage";
 import { PlannerPage } from "@/pages/PlannerPage";
 import { AiLabPage } from "@/pages/AiLabPage";
+import { AdminPage } from "@/pages/AdminPage";
 import { CommunityPage } from "@/pages/CommunityPage";
 import { CommunityRoutePage } from "@/pages/CommunityRoutePage";
 import { LoginPage } from "@/pages/LoginPage";
@@ -19,7 +20,9 @@ export const router = createBrowserRouter([
       { path: "home", element: <HomePage /> },
       { path: "setup", element: <SetupPage /> },
       { path: "planner", element: <PlannerPage /> },
-      { path: "ai-lab", element: <AiLabPage /> },
+      { path: "place-extraction", element: <AiLabPage /> },
+      { path: "ai-lab", element: <Navigate to="/place-extraction" replace /> },
+      { path: "admin", element: <AdminPage /> },
       { path: "community", element: <CommunityPage /> },
       { path: "community/:routeId", element: <CommunityRoutePage /> },
       { path: "login", element: <LoginPage /> },

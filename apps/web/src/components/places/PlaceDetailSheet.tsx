@@ -140,7 +140,6 @@ export function PlaceDetailSheet({
           <div className="place-detail-sheet__body">
             <div className="place-detail-sheet__hero">
               <span className="status-chip">{getProviderLabel(place.provider)}</span>
-              <strong>{place.category}</strong>
             </div>
 
             <div className="place-detail-sheet__section">

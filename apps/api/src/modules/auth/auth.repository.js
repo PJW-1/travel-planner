@@ -11,6 +11,7 @@ function mapUser(row) {
     nickname: row.nickname,
     provider: row.provider,
     status: row.status,
+    role: row.role ?? "user",
     lastLoginAt: row.last_login_at,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
@@ -28,6 +29,7 @@ export async function findUserByEmail(email) {
         nickname,
         provider,
         status,
+        role,
         last_login_at,
         created_at,
         updated_at,
@@ -79,8 +81,8 @@ export async function createLocalUser({ email, nickname, passwordHash }) {
   const db = getDbPool();
   const [result] = await db.execute(
     `
-      INSERT INTO users (email, nickname, password_hash, provider, status)
-      VALUES (?, ?, ?, 'local', 'active')
+      INSERT INTO users (email, nickname, password_hash, provider, status, role)
+      VALUES (?, ?, ?, 'local', 'active', 'user')
     `,
     [email, nickname, passwordHash],
   );
@@ -91,6 +93,7 @@ export async function createLocalUser({ email, nickname, passwordHash }) {
     nickname,
     provider: "local",
     status: "active",
+    role: "user",
   };
 }
 
@@ -116,6 +119,7 @@ export async function findUserById(userId) {
         nickname,
         provider,
         status,
+        role,
         last_login_at,
         created_at,
         updated_at,

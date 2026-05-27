@@ -325,7 +325,7 @@ export function MyPage() {
         <article className="my-stat-card">
           <span>저장 장소</span>
           <strong>{savedPlaces.length}</strong>
-          <p>AI 랩과 커뮤니티에서 담은 장소</p>
+          <p>장소추출과 커뮤니티에서 담은 장소</p>
         </article>
         <article className="my-stat-card">
           <span>내 일정</span>
@@ -419,7 +419,7 @@ export function MyPage() {
               <span>Places</span>
               <h2>저장 장소</h2>
             </div>
-            <Link to="/ai-lab" className="button button--secondary">
+            <Link to="/place-extraction" className="button button--secondary">
               장소 찾기
             </Link>
           </div>
@@ -462,7 +462,7 @@ export function MyPage() {
             </div>
           ) : (
             <div className="empty-state">
-              <p>아직 저장한 장소가 없습니다. AI 랩이나 커뮤니티에서 장소를 담아보세요.</p>
+              <p>아직 저장한 장소가 없습니다. 장소추출이나 커뮤니티에서 장소를 담아보세요.</p>
             </div>
           )}
         </article>

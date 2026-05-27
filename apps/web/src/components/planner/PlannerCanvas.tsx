@@ -19,12 +19,7 @@ type PlannerCanvasProps = {
   showSummary?: boolean;
 };
 
-const categoryColors = {
-  transport: "#2563eb",
-  cafe: "#c2410c",
-  activity: "#0f766e",
-  view: "#7c3aed",
-} satisfies Record<PlannerStop["categoryKey"], string>;
+const stopMarkerColor = "#2563eb";
 
 const segmentColors: Record<string, string> = {
   walk: "#0f766e",
@@ -129,7 +124,7 @@ export function PlannerCanvas({
           position,
           title: stop.name,
           image: new kakao.maps.MarkerImage(
-            createMarkerSvg(categoryColors[stop.categoryKey], index + 1),
+            createMarkerSvg(stopMarkerColor, index + 1),
             new kakao.maps.Size(44, 56),
             { offset: new kakao.maps.Point(22, 54) },
           ),
@@ -138,7 +133,7 @@ export function PlannerCanvas({
         const detailOverlay = new kakao.maps.CustomOverlay({
           position,
           yAnchor: 1.2,
-          content: `<div style="min-width:190px;padding:12px 14px;border-radius:18px;background:#fff;border:1px solid rgba(15,23,42,.08);box-shadow:0 16px 30px rgba(15,23,42,.12);"><strong style="display:block;font-size:14px;margin-bottom:6px;">${stop.name}</strong><div style="font-size:12px;color:#475569;">${stop.time} · ${stop.category}</div>${stop.address ? `<div style="font-size:12px;color:#64748b;margin-top:8px;">${stop.address}</div>` : ""}</div>`,
+          content: `<div style="min-width:190px;padding:12px 14px;border-radius:18px;background:#fff;border:1px solid rgba(15,23,42,.08);box-shadow:0 16px 30px rgba(15,23,42,.12);"><strong style="display:block;font-size:14px;margin-bottom:6px;">${stop.name}</strong><div style="font-size:12px;color:#475569;">${stop.time}</div>${stop.address ? `<div style="font-size:12px;color:#64748b;margin-top:8px;">${stop.address}</div>` : ""}</div>`,
         });
 
         let hoverOverlay: any = null;
@@ -243,7 +238,7 @@ export function PlannerCanvas({
           position: { lat: stop.lat!, lng: stop.lng! },
           title: stop.name,
           icon: {
-            url: createMarkerSvg(categoryColors[stop.categoryKey], index + 1),
+            url: createMarkerSvg(stopMarkerColor, index + 1),
             scaledSize: new google.maps.Size(44, 56),
           },
         });
@@ -255,7 +250,7 @@ export function PlannerCanvas({
         marker.addListener("mouseout", () => infoWindow.close());
         marker.addListener("click", () => {
           infoWindow.setContent(
-            `<div style="min-width:190px;padding:4px 2px;"><strong style="display:block;font-size:14px;margin-bottom:6px;">${stop.name}</strong><div style="font-size:12px;color:#475569;">${stop.time} · ${stop.category}</div>${stop.address ? `<div style="font-size:12px;color:#64748b;margin-top:8px;">${stop.address}</div>` : ""}</div>`,
+            `<div style="min-width:190px;padding:4px 2px;"><strong style="display:block;font-size:14px;margin-bottom:6px;">${stop.name}</strong><div style="font-size:12px;color:#475569;">${stop.time}</div>${stop.address ? `<div style="font-size:12px;color:#64748b;margin-top:8px;">${stop.address}</div>` : ""}</div>`,
           );
           infoWindow.open({ map, anchor: marker });
         });

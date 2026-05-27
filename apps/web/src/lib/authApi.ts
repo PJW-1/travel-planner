@@ -40,6 +40,7 @@ export async function login(payload: {
       nickname: string;
       provider: string;
       status: string;
+      role: "user" | "admin";
     };
   }>(response);
 }
@@ -62,6 +63,7 @@ export async function register(payload: { email: string; nickname: string; passw
       nickname: string;
       provider: string;
       status: string;
+      role: "user" | "admin";
     };
   }>(response);
 }
@@ -79,6 +81,7 @@ export async function fetchMe() {
       nickname: string;
       provider: string;
       status: string;
+      role: "user" | "admin";
       createdAt: string;
       lastLoginAt: string | null;
     };
@@ -103,6 +106,7 @@ export async function updateProfile(payload: { nickname: string }) {
       nickname: string;
       provider: string;
       status: string;
+      role: "user" | "admin";
       createdAt: string;
       lastLoginAt: string | null;
     };

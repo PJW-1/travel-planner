@@ -1,5 +1,6 @@
 import { Router } from "express";
 import { aiLabRouter } from "../modules/ai-lab/aiLab.routes.js";
+import { adminRouter } from "../modules/admin/admin.routes.js";
 import { authRouter } from "../modules/auth/auth.routes.js";
 import { communityRouter } from "../modules/community/community.routes.js";
 import { homeRouter } from "../modules/home/home.routes.js";
@@ -11,8 +12,10 @@ import { tripsRouter } from "../modules/trips/trips.routes.js";
 export const apiRouter = Router();
 
 apiRouter.use("/auth", authRouter);
+apiRouter.use("/admin", adminRouter);
 apiRouter.use("/home", homeRouter);
 apiRouter.use("/community", communityRouter);
+apiRouter.use("/place-extraction", aiLabRouter);
 apiRouter.use("/ai-lab", aiLabRouter);
 apiRouter.use("/my", myRouter);
 apiRouter.use("/planner", plannerRouter);

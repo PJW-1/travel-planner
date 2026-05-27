@@ -481,10 +481,8 @@ export function CommunityRoutePage() {
                           <span>{stop.order}</span>
                         </div>
 
-                        <div
-                          className={`community-route-stop-card__media community-route-stop-card__media--${stop.categoryKey}`}
-                        >
-                          <span>{stop.category}</span>
+                        <div className="community-route-stop-card__media">
+                          <span>{stop.order}</span>
                         </div>
 
                         <div className="community-route-stop-card__body">

@@ -5,7 +5,7 @@ import { fetchMe } from "@/lib/authApi";
 
 const navItems = [
   { to: "/home", label: "홈" },
-  { to: "/ai-lab", label: "AI 랩" },
+  { to: "/place-extraction", label: "장소추출" },
   { to: "/planner", label: "플래너" },
   { to: "/community", label: "커뮤니티" },
 ];
@@ -16,6 +16,7 @@ type AuthUser = {
   nickname: string;
   provider: string;
   status: string;
+  role: "user" | "admin";
   createdAt: string;
 };
 
@@ -84,6 +85,14 @@ export function AppShell() {
               {item.label}
             </NavLink>
           ))}
+          {authUser?.role === "admin" ? (
+            <NavLink
+              to="/admin"
+              className={({ isActive }) => (isActive ? "nav__link is-active" : "nav__link")}
+            >
+              관리자
+            </NavLink>
+          ) : null}
         </nav>
 
         <div className="topbar__actions">
