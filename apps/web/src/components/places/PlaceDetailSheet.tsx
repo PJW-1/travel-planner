@@ -37,6 +37,30 @@ function isInvalidPlaceId(placeId: string | null) {
   );
 }
 
+function buildFallbackProviderUrl(place: PlaceDetail) {
+  if (place.providerUrl) {
+    return place.providerUrl;
+  }
+
+  const query = place.name || place.address;
+
+  if (place.provider === "kakao" && place.providerPlaceId) {
+    return `https://place.map.kakao.com/${encodeURIComponent(place.providerPlaceId)}`;
+  }
+
+  if (place.provider === "google" && place.providerPlaceId) {
+    return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(
+      query,
+    )}&query_place_id=${encodeURIComponent(place.providerPlaceId)}`;
+  }
+
+  if (query) {
+    return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(query)}`;
+  }
+
+  return "";
+}
+
 export function PlaceDetailSheet({
   placeId,
   open,
@@ -46,6 +70,7 @@ export function PlaceDetailSheet({
   const [place, setPlace] = useState<PlaceDetail | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const providerUrl = place ? buildFallbackProviderUrl(place) : "";
 
   useEffect(() => {
     let isMounted = true;
@@ -183,10 +208,10 @@ export function PlaceDetailSheet({
               </p>
 
               <div className="place-detail-sheet__actions">
-                {place.providerUrl ? (
+                {providerUrl ? (
                   <a
                     className="button button--primary"
-                    href={place.providerUrl}
+                    href={providerUrl}
                     target="_blank"
                     rel="noreferrer"
                   >

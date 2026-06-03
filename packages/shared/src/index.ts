@@ -9,6 +9,16 @@ export type TravelRegion =
 
 export type PlaceProvider = "kakao" | "google" | "internal";
 
+export type PlaceCategoryKey =
+  | "restaurant"
+  | "cafe"
+  | "attraction"
+  | "shopping"
+  | "transport"
+  | "lodging"
+  | "activity"
+  | "view";
+
 export type TripConfig = {
   destination: string;
   days: number;
@@ -35,7 +45,7 @@ export type PlannerStop = {
   placeId?: string;
   name: string;
   category: string;
-  categoryKey: "transport" | "cafe" | "activity" | "view";
+  categoryKey: PlaceCategoryKey;
   address?: string;
   lat?: number;
   lng?: number;

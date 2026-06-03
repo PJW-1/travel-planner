@@ -304,7 +304,6 @@ export function CommunityRoutePage() {
             }
           : current,
       );
-      navigate(buildSetupQuery(stop));
     } catch (saveError) {
       setError(
         saveError instanceof Error
@@ -500,16 +499,11 @@ export function CommunityRoutePage() {
                               >
                                 상세 보기
                               </button>
-
                               {stop.isSaved ? (
-                                <button
-                                  type="button"
-                                  className="button button--secondary button--compact"
-                                  onClick={() => navigate(buildSetupQuery(stop))}
-                                >
+                                <span className="button button--secondary button--compact is-static">
                                   <Check size={14} />
-                                  Setup에 담기
-                                </button>
+                                  저장됨
+                                </span>
                               ) : (
                                 <button
                                   type="button"
@@ -520,11 +514,20 @@ export function CommunityRoutePage() {
                                   {savingPlaceId === stop.placeId ? (
                                     <LoaderCircle size={14} className="spin" />
                                   ) : (
-                                    <CopyPlus size={14} />
+                                    <Check size={14} />
                                   )}
-                                  이 장소만 담기
+                                  장소 저장
                                 </button>
                               )}
+
+                              <button
+                                type="button"
+                                className="button button--secondary button--compact"
+                                onClick={() => navigate(buildSetupQuery(stop))}
+                              >
+                                <CopyPlus size={14} />
+                                일정에 담기
+                              </button>
                             </div>
                           </div>
 

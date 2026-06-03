@@ -1,4 +1,4 @@
-import type { PlaceProvider } from "@travel/shared";
+import type { PlaceCategoryKey, PlaceProvider } from "@travel/shared";
 
 export type PlaceSuggestion = {
   placeId: string;
@@ -7,6 +7,7 @@ export type PlaceSuggestion = {
   description: string;
   distanceMeters?: number;
   categoryGroupCode?: string;
+  categoryKey?: PlaceCategoryKey;
 };
 
 export type PlaceDetails = {
@@ -21,6 +22,7 @@ export type PlaceDetails = {
   websiteUrl?: string;
   providerUrl?: string;
   openingHours?: string[];
+  categoryKey?: PlaceCategoryKey;
   rawPayload?: Record<string, unknown> | null;
 };
 

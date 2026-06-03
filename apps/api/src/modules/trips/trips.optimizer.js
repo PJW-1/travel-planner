@@ -906,42 +906,482 @@ function estimateCongestion(stop, arrivalMinutes, tripTheme) {
   return clamp(Math.round(score), 20, 95);
 }
 
-function buildWarnings({ transportType, totalTravelMinutes, totalWalkMinutes, clusterCount, stopCount }) {
-  const warnings = [];
-
-  if (totalWalkMinutes >= 35) {
-    warnings.push({
-      iconKey: "footprints",
-      title: "도보 이동량이 많은 일정입니다",
-      description:
-        "연속 도보 이동이 길어질 수 있어 편한 신발이나 중간 휴식 구간을 함께 고려하는 편이 좋습니다.",
-    });
+function buildWarnings({ totalTravelMinutes, totalWalkMinutes, stopCount }) {
+  if (totalTravelMinutes >= 100 || stopCount >= 7) {
+    return [
+      {
+        iconKey: "clock",
+        title: "일정이 빡빡한 편입니다",
+        description: "이동 시간이 길어질 수 있어 한두 곳은 여유 장소로 두는 편이 좋습니다.",
+      },
+    ];
   }
 
-  if (totalTravelMinutes >= 90 || stopCount >= 6) {
-    warnings.push({
-      iconKey: "clock",
-      title: "하루 일정이 다소 촘촘합니다",
-      description:
-        "이동 시간과 체류 시간을 합치면 여유 시간이 빠듯할 수 있습니다. 한두 곳은 여유 시간으로 남겨두는 편이 안정적입니다.",
-    });
+  if (totalWalkMinutes >= 45) {
+    return [
+      {
+        iconKey: "footprints",
+        title: "도보 이동이 긴 편입니다",
+        description: "중간에 쉬어갈 장소를 하나 정도 확보해두면 일정이 더 안정적입니다.",
+      },
+    ];
   }
 
-  if (transportType === "car" && clusterCount > 0) {
-    warnings.push({
-      iconKey: "footprints",
-      title: "가까운 장소는 한 번 주차 후 도보로 묶었습니다",
-      description:
-        "자차 이동에서도 짧은 구간은 주차 후 함께 걷는 편이 더 효율적이라 도보 묶음으로 반영했습니다.",
-    });
-  }
-
-  return warnings;
+  return [];
 }
 
-function buildOptimizationScore(totalTravelMinutes, averageCongestion, fatigueScore) {
-  const raw = 100 - totalTravelMinutes * 0.22 - averageCongestion * 0.2 - fatigueScore * 0.16;
+function buildOptimizationScore(totalTravelMinutes, fatigueScore) {
+  const raw = 100 - totalTravelMinutes * 0.22 - fatigueScore * 0.16;
   return clamp(Math.round(raw), 48, 98);
+}
+
+function isMealStop(stop) {
+  return stop.category_key === "restaurant";
+}
+
+function isRestStop(stop) {
+  return stop.category_key === "cafe";
+}
+
+function getDayTimeWindow(nodes) {
+  if (!Array.isArray(nodes) || nodes.length === 0) {
+    return {
+      startMinutes: 10 * 60,
+      endMinutes: 20 * 60,
+    };
+  }
+
+  const startMinutes = Math.min(
+    ...nodes.map((node) => parseTimeToMinutes(node.arrival_time)),
+  );
+  const endMinutes = Math.max(
+    ...nodes.map((node) => {
+      if (node.leave_time) {
+        const leaveMinutes = parseTimeToMinutes(node.leave_time);
+        return leaveMinutes;
+      }
+
+      return parseTimeToMinutes(node.arrival_time) + Number(node.stay_minutes ?? 0);
+    }),
+  );
+
+  return {
+    startMinutes,
+    endMinutes: Math.max(endMinutes, startMinutes + 180),
+  };
+}
+
+function clampToDayWindow(minutes, { startMinutes, endMinutes }, paddingMinutes = 45) {
+  const lowerBound = startMinutes + paddingMinutes;
+  const upperBound = endMinutes - paddingMinutes;
+
+  if (upperBound <= lowerBound) {
+    return Math.round((startMinutes + endMinutes) / 2);
+  }
+
+  return clamp(minutes, lowerBound, upperBound);
+}
+
+function getMealAndRestTargets(nodes, tripTheme) {
+  const dayWindow = getDayTimeWindow(nodes);
+  const lunchMinutes = clampToDayWindow(
+    parseTimeToMinutes(tripTheme.lunchTime ?? "12:00"),
+    dayWindow,
+  );
+  const dinnerMinutes = clampToDayWindow(
+    parseTimeToMinutes(tripTheme.dinnerTime ?? "18:30"),
+    dayWindow,
+  );
+  const hasDinnerSlot = dinnerMinutes - lunchMinutes >= 120;
+  const cafeBaseMinutes = hasDinnerSlot
+    ? Math.round((lunchMinutes + dinnerMinutes) / 2)
+    : lunchMinutes + 120;
+  const cafeMinutes = clampToDayWindow(cafeBaseMinutes, dayWindow, 30);
+
+  return {
+    lunchMinutes,
+    dinnerMinutes,
+    cafeMinutes,
+    hasDinnerSlot,
+  };
+}
+
+function getOrderedLeg(from, to, transportType, clusterByStopId) {
+  if (!from || !to) {
+    return { distanceKm: 0, minutes: 0, kind: transportType };
+  }
+
+  const sameCluster =
+    transportType === "car" &&
+    clusterByStopId &&
+    clusterByStopId.get(from.id) === clusterByStopId.get(to.id);
+
+  return getTravelLeg(from, to, transportType, { internalWalk: sameCluster });
+}
+
+function scoreTimedOrder(nodes, {
+  targetStopId,
+  targetMinutes,
+  transportType,
+  startAnchor,
+  clusterByStopId,
+}) {
+  if (!Array.isArray(nodes) || nodes.length === 0) {
+    return Number.POSITIVE_INFINITY;
+  }
+
+  const originalStartMinutes = Math.min(
+    ...nodes.map((node) => parseTimeToMinutes(node.arrival_time)),
+  );
+  let currentMinutes = originalStartMinutes;
+  let totalTravelMinutes = 0;
+
+  if (startAnchor && nodes[0]) {
+    const startLeg = getOrderedLeg(startAnchor, nodes[0], transportType, clusterByStopId);
+    currentMinutes += startLeg.minutes;
+    totalTravelMinutes += startLeg.minutes;
+  }
+
+  let targetArrivalMinutes = null;
+
+  for (let index = 0; index < nodes.length; index += 1) {
+    const node = nodes[index];
+
+    if (String(node.id) === String(targetStopId)) {
+      targetArrivalMinutes = currentMinutes;
+    }
+
+    currentMinutes += Number(node.stay_minutes ?? 0);
+
+    const nextNode = nodes[index + 1];
+    if (nextNode) {
+      const leg = getOrderedLeg(node, nextNode, transportType, clusterByStopId);
+      currentMinutes += leg.minutes;
+      totalTravelMinutes += leg.minutes;
+    }
+  }
+
+  if (targetArrivalMinutes === null) {
+    return Number.POSITIVE_INFINITY;
+  }
+
+  return Math.abs(targetArrivalMinutes - targetMinutes) + totalTravelMinutes * 0.18;
+}
+
+function moveBestStopToTimeSlot(nodes, {
+  predicate,
+  targetMinutes,
+  transportType,
+  startAnchor,
+  clusterByStopId,
+  lockedIds,
+}) {
+  const candidates = nodes.filter(
+    (node) => predicate(node) && !lockedIds.has(String(node.id)),
+  );
+
+  if (candidates.length === 0) {
+    return nodes;
+  }
+
+  let bestOrder = nodes;
+  let bestScore = Number.POSITIVE_INFINITY;
+  let bestStopId = null;
+
+  for (const candidate of candidates) {
+    const baseOrder = nodes.filter((node) => String(node.id) !== String(candidate.id));
+
+    for (let index = 0; index <= baseOrder.length; index += 1) {
+      const nextOrder = [
+        ...baseOrder.slice(0, index),
+        candidate,
+        ...baseOrder.slice(index),
+      ];
+      const score = scoreTimedOrder(nextOrder, {
+        targetStopId: candidate.id,
+        targetMinutes,
+        transportType,
+        startAnchor,
+        clusterByStopId,
+      });
+
+      if (score < bestScore) {
+        bestOrder = nextOrder;
+        bestScore = score;
+        bestStopId = candidate.id;
+      }
+    }
+  }
+
+  if (bestStopId !== null) {
+    lockedIds.add(String(bestStopId));
+  }
+
+  return bestOrder;
+}
+
+function applyMealAndRestSlots(routeResult, {
+  transportType,
+  startAnchor,
+  tripTheme,
+}) {
+  let orderedNodes = [...routeResult.orderedNodes];
+  const lockedIds = new Set();
+  const {
+    lunchMinutes,
+    dinnerMinutes,
+    cafeMinutes,
+    hasDinnerSlot,
+  } = getMealAndRestTargets(orderedNodes, tripTheme);
+
+  orderedNodes = moveBestStopToTimeSlot(orderedNodes, {
+    predicate: isMealStop,
+    targetMinutes: lunchMinutes,
+    transportType,
+    startAnchor,
+    clusterByStopId: routeResult.clusterByStopId,
+    lockedIds,
+  });
+
+  if (hasDinnerSlot) {
+    orderedNodes = moveBestStopToTimeSlot(orderedNodes, {
+      predicate: isMealStop,
+      targetMinutes: dinnerMinutes,
+      transportType,
+      startAnchor,
+      clusterByStopId: routeResult.clusterByStopId,
+      lockedIds,
+    });
+  }
+
+  orderedNodes = moveBestStopToTimeSlot(orderedNodes, {
+    predicate: isRestStop,
+    targetMinutes: cafeMinutes,
+    transportType,
+    startAnchor,
+    clusterByStopId: routeResult.clusterByStopId,
+    lockedIds,
+  });
+
+  return {
+    ...routeResult,
+    orderedNodes,
+  };
+}
+
+function getDayTargets(totalStops, dayCount) {
+  if (dayCount <= 1) {
+    return [totalStops];
+  }
+
+  const weights = Array.from({ length: dayCount }, (_, index) => {
+    if (dayCount === 2) {
+      return 1;
+    }
+
+    if (index === 0 || index === dayCount - 1) {
+      return 0.85;
+    }
+
+    return 1.15;
+  });
+  const weightSum = weights.reduce((sum, weight) => sum + weight, 0);
+  const targets = weights.map((weight) =>
+    Math.max(1, Math.floor((totalStops * weight) / weightSum)),
+  );
+
+  while (targets.reduce((sum, target) => sum + target, 0) < totalStops) {
+    let bestIndex = 0;
+    let bestRatio = Number.POSITIVE_INFINITY;
+
+    for (let index = 0; index < targets.length; index += 1) {
+      const ratio = targets[index] / weights[index];
+      if (ratio < bestRatio) {
+        bestIndex = index;
+        bestRatio = ratio;
+      }
+    }
+
+    targets[bestIndex] += 1;
+  }
+
+  while (targets.reduce((sum, target) => sum + target, 0) > totalStops) {
+    let bestIndex = targets.findIndex((target) => target > 1);
+
+    if (bestIndex < 0) {
+      break;
+    }
+
+    for (let index = 0; index < targets.length; index += 1) {
+      if (targets[index] > targets[bestIndex] && targets[index] > 1) {
+        bestIndex = index;
+      }
+    }
+
+    targets[bestIndex] -= 1;
+  }
+
+  return targets;
+}
+
+function getClusterCenter(stops) {
+  if (!Array.isArray(stops) || stops.length === 0) {
+    return null;
+  }
+
+  return {
+    lat: stops.reduce((sum, stop) => sum + Number(stop.lat), 0) / stops.length,
+    lng: stops.reduce((sum, stop) => sum + Number(stop.lng), 0) / stops.length,
+  };
+}
+
+function distanceToBucket(stop, bucket) {
+  const center = getClusterCenter(bucket.stops);
+
+  if (!center) {
+    return Number.POSITIVE_INFINITY;
+  }
+
+  return haversineDistanceKm(stop, center);
+}
+
+function chooseFarthestStop(stops, seeds) {
+  return stops.reduce((best, stop) => {
+    const nearestSeedDistance =
+      seeds.length === 0
+        ? 0
+        : Math.min(...seeds.map((seed) => haversineDistanceKm(stop, seed)));
+
+    if (!best || nearestSeedDistance > best.distance) {
+      return { stop, distance: nearestSeedDistance };
+    }
+
+    return best;
+  }, null)?.stop ?? stops[0];
+}
+
+function buildDayBuckets(stops, dayRows, startPoint) {
+  const targets = getDayTargets(stops.length, dayRows.length);
+  const buckets = dayRows.map((dayRow, index) => ({
+    dayRow,
+    target: targets[index] ?? Math.ceil(stops.length / Math.max(1, dayRows.length)),
+    stops: [],
+  }));
+  const coreStops = stops.filter((stop) => !isMealStop(stop) && !isRestStop(stop));
+  const mealStops = stops.filter(isMealStop);
+  const restStops = stops.filter(isRestStop);
+  const seedSource = coreStops.length > 0 ? coreStops : stops;
+  const seeds = [];
+
+  if (seedSource.length > 0) {
+    const firstSeed =
+      startPoint && Number.isFinite(Number(startPoint.lat)) && Number.isFinite(Number(startPoint.lng))
+        ? seedSource.reduce((best, stop) =>
+            !best || haversineDistanceKm(startPoint, stop) < haversineDistanceKm(startPoint, best)
+              ? stop
+              : best,
+          null)
+        : seedSource[0];
+
+    if (firstSeed) {
+      seeds.push(firstSeed);
+    }
+
+    while (seeds.length < buckets.length && seeds.length < seedSource.length) {
+      const nextSeed = chooseFarthestStop(
+        seedSource.filter((stop) => !seeds.some((seed) => seed.id === stop.id)),
+        seeds,
+      );
+
+      if (!nextSeed) {
+        break;
+      }
+
+      seeds.push(nextSeed);
+    }
+  }
+
+  seeds.forEach((seed, index) => {
+    buckets[index]?.stops.push(seed);
+  });
+
+  function assignStop(stop, options = {}) {
+    const { preferMealBalance = false, preferRestBalance = false } = options;
+    const candidates = buckets
+      .map((bucket, index) => {
+        const currentMealCount = bucket.stops.filter(isMealStop).length;
+        const currentRestCount = bucket.stops.filter(isRestStop).length;
+        const capacityPenalty = bucket.stops.length >= bucket.target ? 3 : 0;
+        const mealPenalty = preferMealBalance && currentMealCount >= 2 ? 2.5 : 0;
+        const restPenalty = preferRestBalance && currentRestCount >= 1 ? 1.5 : 0;
+        const emptyPenalty = bucket.stops.length === 0 ? 0.4 : 0;
+        const distance = Number.isFinite(distanceToBucket(stop, bucket))
+          ? distanceToBucket(stop, bucket)
+          : index;
+
+        return {
+          bucket,
+          score: distance + capacityPenalty + mealPenalty + restPenalty + emptyPenalty,
+        };
+      })
+      .sort((left, right) => left.score - right.score);
+
+    candidates[0]?.bucket.stops.push(stop);
+  }
+
+  const seededIds = new Set(seeds.map((seed) => seed.id));
+  coreStops
+    .filter((stop) => !seededIds.has(stop.id))
+    .forEach((stop) => assignStop(stop));
+  mealStops.forEach((stop) => assignStop(stop, { preferMealBalance: true }));
+  restStops.forEach((stop) => assignStop(stop, { preferRestBalance: true }));
+
+  return buckets;
+}
+
+async function redistributeStopsByDay(connection, dayRows, stopRows, startPoint) {
+  if (dayRows.length <= 1 || stopRows.length <= 1) {
+    return stopRows;
+  }
+
+  const validStops = stopRows.filter(
+    (stop) => Number.isFinite(Number(stop.lat)) && Number.isFinite(Number(stop.lng)),
+  );
+
+  if (validStops.length <= 1) {
+    return stopRows;
+  }
+
+  const buckets = buildDayBuckets(validStops, dayRows, startPoint);
+  const dayIdByStopId = new Map();
+
+  for (const bucket of buckets) {
+    bucket.stops.forEach((stop) => {
+      dayIdByStopId.set(Number(stop.id), bucket.dayRow.id);
+    });
+  }
+
+  for (const stop of stopRows) {
+    const nextDayId = dayIdByStopId.get(Number(stop.id));
+
+    if (nextDayId && Number(nextDayId) !== Number(stop.trip_day_id)) {
+      await connection.execute(
+        `
+          UPDATE trip_stops
+          SET trip_day_id = ?
+          WHERE id = ?
+        `,
+        [nextDayId, stop.id],
+      );
+
+      stop.trip_day_id = nextDayId;
+      stop.day_number =
+        dayRows.find((dayRow) => Number(dayRow.id) === Number(nextDayId))?.day_number ??
+        stop.day_number;
+    }
+  }
+
+  return stopRows;
 }
 
 async function buildRouteSegments({
@@ -1034,7 +1474,6 @@ async function updateDayRoute(connection, dayId, routeResult, routeSegments, tri
 
   let currentMinutes = originalStartMinutes + (startSegment?.travelMinutes ?? 0);
   let walkMinutes = startSegment?.mode === "walk" ? startSegment.travelMinutes : 0;
-  let totalCongestion = 0;
 
   for (const [index, stop] of routeResult.orderedNodes.entries()) {
     const nextSegment = betweenSegments[index] ?? {
@@ -1044,10 +1483,8 @@ async function updateDayRoute(connection, dayId, routeResult, routeSegments, tri
     };
     const arrivalTime = formatMinutesToTime(currentMinutes);
     const leaveTime = formatMinutesToTime(currentMinutes + Number(stop.stay_minutes ?? 0));
-    const congestionScore = estimateCongestion(stop, currentMinutes, tripTheme);
     const position = mapPositionForIndex(index);
 
-    totalCongestion += congestionScore;
     if (nextSegment.mode === "walk") {
       walkMinutes += nextSegment.travelMinutes;
     }
@@ -1073,7 +1510,7 @@ async function updateDayRoute(connection, dayId, routeResult, routeSegments, tri
         leaveTime,
         nextSegment.travelMinutes,
         nextSegment.distanceKm,
-        congestionScore,
+        0,
         stop.transport_type,
         position.x,
         position.y,
@@ -1097,8 +1534,6 @@ async function updateDayRoute(connection, dayId, routeResult, routeSegments, tri
       (endSegment?.travelMinutes ?? 0),
     totalWalkMinutes:
       walkMinutes + (endSegment?.mode === "walk" ? endSegment.travelMinutes : 0),
-    averageCongestion:
-      routeResult.orderedNodes.length > 0 ? totalCongestion / routeResult.orderedNodes.length : 0,
   };
 }
 
@@ -1141,6 +1576,7 @@ export async function optimizeTripRoute(userId, tripId, options = {}) {
           ts.trip_day_id,
           td.day_number,
           ts.arrival_time,
+          ts.leave_time,
           ts.stay_minutes,
           ts.transport_type,
           ts.category_key,
@@ -1163,9 +1599,16 @@ export async function optimizeTripRoute(userId, tripId, options = {}) {
     const travelRegion = theme.travelRegion ?? "korea";
     const startPoint = normalizeLocationPoint(theme.startPoint);
     const endPoint = normalizeLocationPoint(theme.endPoint);
+    const shouldAutoDistribute = Object.keys(manualOrderByDay).length === 0;
     const stopsByDay = new Map();
 
-    for (const stop of stopRows) {
+    await connection.beginTransaction();
+
+    const distributedStopRows = shouldAutoDistribute
+      ? await redistributeStopsByDay(connection, dayRows, stopRows, startPoint)
+      : stopRows;
+
+    for (const stop of distributedStopRows) {
       if (!Number.isFinite(Number(stop.lat)) || !Number.isFinite(Number(stop.lng))) {
         continue;
       }
@@ -1182,13 +1625,10 @@ export async function optimizeTripRoute(userId, tripId, options = {}) {
     let totalDistanceKm = 0;
     let totalTravelMinutes = 0;
     let totalWalkMinutes = 0;
-    let totalCongestionScore = 0;
     let totalStopCount = 0;
     let carClusterCount = 0;
     let dominantTransportType = "walk";
     const routeSegmentsByDay = {};
-
-    await connection.beginTransaction();
 
     for (const dayRow of dayRows) {
       const dayStops = stopsByDay.get(dayRow.day_number) ?? [];
@@ -1200,7 +1640,7 @@ export async function optimizeTripRoute(userId, tripId, options = {}) {
       const transportType = dayStops[0].transport_type ?? "walk";
       dominantTransportType = transportType;
       const requestedOrderIds = manualOrderByDay[String(dayRow.day_number)] ?? null;
-      const routeResult = Array.isArray(requestedOrderIds)
+      let routeResult = Array.isArray(requestedOrderIds)
         ? optimizeManualDay(
             dayStops,
             transportType,
@@ -1220,6 +1660,14 @@ export async function optimizeTripRoute(userId, tripId, options = {}) {
               dayRow.day_number === 1 ? startPoint : null,
               dayRow.day_number === dayRows.length ? endPoint : null,
             );
+
+      if (!Array.isArray(requestedOrderIds)) {
+        routeResult = applyMealAndRestSlots(routeResult, {
+          transportType,
+          startAnchor: dayRow.day_number === 1 ? startPoint : null,
+          tripTheme: theme,
+        });
+      }
 
       const routeSegments = await buildRouteSegments({
         orderedNodes: routeResult.orderedNodes,
@@ -1242,12 +1690,10 @@ export async function optimizeTripRoute(userId, tripId, options = {}) {
       totalDistanceKm += dayMetrics.totalDistanceKm;
       totalTravelMinutes += dayMetrics.totalTravelMinutes;
       totalWalkMinutes += dayMetrics.totalWalkMinutes;
-      totalCongestionScore += dayMetrics.averageCongestion * routeResult.orderedNodes.length;
       totalStopCount += routeResult.orderedNodes.length;
       carClusterCount += routeResult.clusterCount;
     }
 
-    const averageCongestion = totalStopCount > 0 ? totalCongestionScore / totalStopCount : 0;
     const fatigueScore = clamp(
       Math.round(totalWalkMinutes * 0.9 + totalTravelMinutes * 0.2 + carClusterCount * 6),
       18,
@@ -1260,11 +1706,7 @@ export async function optimizeTripRoute(userId, tripId, options = {}) {
       clusterCount: carClusterCount,
       stopCount: totalStopCount,
     });
-    const optimizationScore = buildOptimizationScore(
-      totalTravelMinutes,
-      averageCongestion,
-      fatigueScore,
-    );
+    const optimizationScore = buildOptimizationScore(totalTravelMinutes, fatigueScore);
 
     await connection.execute(
       `

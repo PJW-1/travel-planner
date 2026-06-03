@@ -4,6 +4,7 @@ import type {
   PlaceSuggestion,
   SuggestionSearchOptions,
 } from "./mapTypes";
+import { inferPlaceCategory } from "./placeCategories";
 
 declare global {
   interface Window {
@@ -186,6 +187,7 @@ async function fetchLegacyAutocompleteSuggestions(
       prediction?.structured_formatting?.secondary_text ??
       "",
     description: prediction?.description ?? "",
+    categoryKey: inferPlaceCategory({ provider: 'google', title: prediction?.description, description: prediction?.description }),
     distanceMeters:
       typeof prediction?.distance_meters === "number"
         ? prediction.distance_meters
@@ -205,6 +207,12 @@ function normalizePlaceResult(place: any) {
       : Number(geometryLocation?.lng);
   const placeId = String(place?.place_id ?? `${place?.name}:${lat}:${lng}`);
   const address = place?.formatted_address ?? place?.vicinity ?? "";
+  const categoryKey = inferPlaceCategory({
+    provider: "google",
+    types: place?.types,
+    title: place?.name,
+    description: [place?.types?.join(" "), address].filter(Boolean).join(" "),
+  });
 
   if (Number.isFinite(lat) && Number.isFinite(lng)) {
     placeDetailsCache.set(placeId, {
@@ -224,6 +232,7 @@ function normalizePlaceResult(place: any) {
       openingHours: Array.isArray(place?.opening_hours?.weekday_text)
         ? place.opening_hours.weekday_text
         : undefined,
+      categoryKey,
       rawPayload: place ?? null,
     });
   }
@@ -232,7 +241,8 @@ function normalizePlaceResult(place: any) {
     placeId,
     title: place?.name ?? "",
     subtitle: address,
-    description: [place?.types?.join(", "), address].filter(Boolean).join(" 쨌 "),
+    description: [place?.types?.join(", "), address].filter(Boolean).join(" · "),
+    categoryKey,
   } as PlaceSuggestion;
 }
 
@@ -360,6 +370,7 @@ async function fetchAutocompleteSuggestions(
         title: prediction?.mainText?.text ?? prediction?.text?.text ?? "",
         subtitle: prediction?.secondaryText?.text ?? "",
         description: prediction?.text?.text ?? "",
+        categoryKey: inferPlaceCategory({ provider: 'google', title: prediction?.text?.text, description: prediction?.text?.text }),
         distanceMeters:
           typeof prediction?.distanceMeters === "number"
             ? prediction.distanceMeters

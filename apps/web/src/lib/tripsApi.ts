@@ -1,4 +1,4 @@
-import type { PlaceProvider, PlannerStop, TravelRegion } from "@travel/shared";
+import type { PlaceCategoryKey, PlaceProvider, PlannerStop, TravelRegion } from "@travel/shared";
 import { API_BASE_URL } from "./authApi";
 
 type PlannerInsight = {
@@ -90,7 +90,7 @@ export type TripPayload = {
 export type TripStopPayload = {
   dayNumber: number;
   name: string;
-  categoryKey: "transport" | "cafe" | "activity" | "view";
+  categoryKey: PlaceCategoryKey;
   address?: string;
   lat?: number | null;
   lng?: number | null;

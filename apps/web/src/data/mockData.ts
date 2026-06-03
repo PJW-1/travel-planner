@@ -4,7 +4,7 @@ export const upcomingTrip = {
   month: "May",
   day: "24",
   title: "서울 성수동 당일치기 투어",
-  description: "서울역 출발 • 총 4개 장소 • 동선 점수 92",
+  description: "\uC11C\uC6B8\uC5ED \uCD9C\uBC1C \u2022 \uCD1D 4\uAC1C \uC7A5\uC18C",
 };
 
 export const tripConfig: TripConfig = {

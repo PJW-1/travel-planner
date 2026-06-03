@@ -1,11 +1,17 @@
 import { getDbPool } from "../../database/mysql.js";
 
 const CATEGORY_LABELS = {
-  transport: "교통 허브",
-  cafe: "카페",
-  activity: "액티비티",
-  view: "뷰 포인트",
+  restaurant: "restaurant",
+  cafe: "cafe",
+  attraction: "attraction",
+  shopping: "shopping",
+  transport: "transport",
+  lodging: "lodging",
+  activity: "activity",
+  view: "view",
 };
+
+const CATEGORY_KEYS = new Set(Object.keys(CATEGORY_LABELS));
 
 const MAP_POSITIONS = [
   { x: 18, y: 52 },
@@ -99,7 +105,7 @@ function normalizeTime(value, fallback) {
 }
 
 function normalizeCategoryKey(value) {
-  if (value === "transport" || value === "cafe" || value === "activity" || value === "view") {
+  if (CATEGORY_KEYS.has(value)) {
     return value;
   }
 
@@ -266,20 +272,32 @@ function buildSummary(stopRows, analysisRow) {
     (sum, row) => sum + Number(row.travel_minutes_from_prev ?? 0),
     0,
   );
-  const averageCongestion =
-    stopRows.length > 0
-      ? stopRows.reduce((sum, row) => sum + Number(row.congestion_score ?? 0), 0) / stopRows.length
-      : 0;
 
   const optimizationScore = Math.max(
     45,
-    Math.round(100 - totalTravelMinutes * 0.18 - averageCongestion * 0.2),
+    Math.round(100 - totalTravelMinutes * 0.18),
   );
 
   return {
     totalDistanceKm: Number(totalDistanceKm.toFixed(1)),
     totalTravelMinutes,
     optimizationScore,
+  };
+}
+
+function toMinimalInsight(iconKey) {
+  if (iconKey === "clock") {
+    return {
+      iconKey: "clock",
+      title: "\uC77C\uC815\uC774 \uBE61\uBE61\uD55C \uD3B8\uC785\uB2C8\uB2E4",
+      description: "\uC774\uB3D9 \uC2DC\uAC04\uC774 \uAE38\uC5B4\uC9C8 \uC218 \uC788\uC5B4 \uD55C\uB450 \uACF3\uC740 \uC5EC\uC720 \uC7A5\uC18C\uB85C \uB450\uB294 \uD3B8\uC774 \uC88B\uC2B5\uB2C8\uB2E4.",
+    };
+  }
+
+  return {
+    iconKey: "footprints",
+    title: "\uB3C4\uBCF4 \uC774\uB3D9\uC774 \uAE34 \uD3B8\uC785\uB2C8\uB2E4",
+    description: "\uC911\uAC04\uC5D0 \uC26C\uC5B4\uAC08 \uC7A5\uC18C\uB97C \uD558\uB098 \uC815\uB3C4 \uD655\uBCF4\uD574\uB450\uBA74 \uC77C\uC815\uC774 \uB354 \uC548\uC815\uC801\uC785\uB2C8\uB2E4.",
   };
 }
 
@@ -292,34 +310,22 @@ function buildInsights(stopRows, summary, analysisRow) {
       : [];
 
   if (savedWarnings.length > 0) {
-    return savedWarnings;
+    const warning = savedWarnings.find((item) => item?.iconKey === "clock") ?? savedWarnings[0];
+    return [toMinimalInsight(warning?.iconKey)];
   }
 
-  const insights = [];
-  const hasLongWalk = stopRows.some((row) => Number(row.travel_minutes_from_prev) >= 20);
-  const hasBusyStop = stopRows.some((row) => Number(row.congestion_score) >= 80);
+  const hasLongWalk = stopRows.some((row) => Number(row.travel_minutes_from_prev) >= 25);
+
+  if (summary.totalTravelMinutes >= 100 || stopRows.length >= 7) {
+    return [toMinimalInsight("clock")];
+  }
 
   if (hasLongWalk) {
-    insights.push({
-      iconKey: "footprints",
-      title: "도보 이동량이 많습니다",
-      description:
-        "장소 사이 이동 시간이 길어지는 구간이 있어 체력 소모가 큽니다. 중간 휴식이나 교통수단 변경을 고려해보세요.",
-    });
+    return [toMinimalInsight("footprints")];
   }
 
-  if (summary.totalTravelMinutes >= 60 || hasBusyStop) {
-    insights.push({
-      iconKey: "clock",
-      title: "오후 일정에 여유 시간이 필요합니다",
-      description:
-        "혼잡한 장소와 이동 시간이 겹쳐 일정이 밀릴 수 있습니다. 20분 정도 여유 시간을 두는 편이 안정적입니다.",
-    });
-  }
-
-  return insights;
+  return [];
 }
-
 function getRouteSegmentsForDay(analysisRow, dayNumber) {
   const payload = parseJsonValue(analysisRow?.warning_json, {});
   const daySegments = payload?.routeSegmentsByDay?.[String(dayNumber)];
@@ -891,7 +897,7 @@ export async function createTripStop(userId, tripId, payload) {
     const time = normalizeTime(payload.time, "10:00");
     const stayMinutes = normalizeInteger(payload.stayMinutes, { min: 0, max: 1440 });
     const travelMinutes = normalizeInteger(payload.travelMinutes, { min: 0, max: 720 });
-    const congestion = normalizeInteger(payload.congestion, { min: 0, max: 100 });
+    const congestion = 0;
     const distanceKm = normalizeDecimal(payload.distanceKm, { min: 0, max: 999 });
     const transportType = normalizeTransportType(payload.transportType);
     const [countRows] = await connection.execute(
@@ -1135,10 +1141,7 @@ export async function updateTripStop(userId, tripId, stopId, payload) {
       min: 0,
       max: 999,
     });
-    const congestion = normalizeInteger(payload.congestion ?? stop.congestion_score, {
-      min: 0,
-      max: 100,
-    });
+    const congestion = 0;
     const transportType = normalizeTransportType(payload.transportType ?? stop.transport_type);
     const requestedStopOrder = normalizeInteger(payload.stopOrder ?? stop.stop_order, {
       min: 1,

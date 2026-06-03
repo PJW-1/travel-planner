@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { ArrowRight, MapPin, Plus, Search } from "lucide-react";
-import type { PlaceProvider, PlannerStop, TravelRegion } from "@travel/shared";
+import type { PlaceCategoryKey, PlaceProvider, PlannerStop, TravelRegion } from "@travel/shared";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { PageHeader } from "@/components/PageHeader";
 import { PlaceDetailSheet } from "@/components/places/PlaceDetailSheet";
@@ -12,6 +12,11 @@ import {
   fetchPlaceSuggestionsByRegion,
   type PlaceSuggestion,
 } from "@/lib/mapProvider";
+import {
+  editablePlaceCategories,
+  normalizePlaceCategoryKey,
+  placeCategoryLabels,
+} from "@/lib/placeCategories";
 import { getMapProvider, getTravelRegionLabel, travelRegionOptions } from "@/lib/travelRegion";
 import {
   createTrip,
@@ -38,7 +43,7 @@ type TripFormState = {
 type StopFormState = {
   placeId: string;
   name: string;
-  categoryKey: "transport" | "cafe" | "activity" | "view";
+  categoryKey: PlaceCategoryKey;
   visitTimeMode: "auto" | "manual";
   time: string;
   stayMinutes: number;
@@ -71,12 +76,7 @@ const MAP_POSITIONS = [
   { x: 42, y: 72 },
 ];
 
-const CATEGORY_LABELS = {
-  transport: "교통 허브",
-  cafe: "카페",
-  activity: "액티비티",
-  view: "뷰 포인트",
-} satisfies Record<StopFormState["categoryKey"], string>;
+const CATEGORY_LABELS = placeCategoryLabels;
 
 function isBroadRegionQuery(value: string) {
   const query = value.trim();
@@ -145,14 +145,8 @@ function createDefaultStopForm(dayNumber = 1): StopFormState {
   };
 }
 
-function normalizeCategoryKeyForCommunity(
-  value: string,
-): "transport" | "cafe" | "activity" | "view" {
-  if (value === "transport" || value === "cafe" || value === "activity" || value === "view") {
-    return value;
-  }
-
-  return "activity";
+function normalizeCategoryKeyForCommunity(value: string): PlaceCategoryKey {
+  return normalizePlaceCategoryKey(value);
 }
 
 function createTempId() {
@@ -582,6 +576,7 @@ export function SetupPage() {
         lng: details.lng,
         provider: details.provider,
         providerPlaceId: details.providerPlaceId,
+        categoryKey: details.categoryKey ?? suggestion.categoryKey ?? "activity",
         phone: details.phone ?? "",
         websiteUrl: details.websiteUrl ?? "",
         providerUrl: details.providerUrl ?? "",
@@ -1056,6 +1051,23 @@ export function SetupPage() {
                     <strong>{stopForm.name}</strong>
                     <p>{stopForm.address}</p>
                   </div>
+                  <select
+                    className="place-category-chip"
+                    value={stopForm.categoryKey}
+                    aria-label="장소 분류"
+                    onChange={(event) =>
+                      setStopForm((current) => ({
+                        ...current,
+                        categoryKey: normalizePlaceCategoryKey(event.target.value),
+                      }))
+                    }
+                  >
+                    {editablePlaceCategories.map((categoryKey) => (
+                      <option key={categoryKey} value={categoryKey}>
+                        {CATEGORY_LABELS[categoryKey]}
+                      </option>
+                    ))}
+                  </select>
                   {stopForm.placeId ? (
                     <button
                       type="button"
@@ -1181,14 +1193,6 @@ export function SetupPage() {
                     editing={editingStopId === stop.id}
                     onEdit={handleEditStop}
                     onDelete={handleDeleteStop}
-                    onOpenDetail={
-                      stop.placeId
-                        ? (selectedStop) => {
-                            setSelectedPlaceId(selectedStop.placeId ?? null);
-                            setSelectedPlaceDetail(createLocalPlaceDetailFromStop(selectedStop));
-                          }
-                        : undefined
-                    }
                   />
                 ))}
               </>

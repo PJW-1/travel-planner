@@ -126,7 +126,7 @@ export async function getHomeContent() {
       day: trip ? String(new Date(trip.start_date).getDate()) : "",
       title: trip?.title ?? "",
       description: trip
-        ? `${trip.destination}역 출발 · 총 ${trip.stop_count}개 장소 · 동선 점수 ${trip.optimization_score}`
+        ? `${trip.destination}\uC5D0\uC11C \uCD9C\uBC1C \u00B7 \uCD1D ${trip.stop_count}\uAC1C \uC7A5\uC18C`
         : "",
     },
     tripConfig: {

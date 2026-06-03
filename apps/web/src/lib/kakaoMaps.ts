@@ -3,6 +3,7 @@ import type {
   PlaceSuggestion,
   SuggestionSearchOptions,
 } from "./mapTypes";
+import { inferPlaceCategory } from "./placeCategories";
 
 declare global {
   interface Window {
@@ -20,6 +21,13 @@ function getApiKey() {
 function normalizePlaceItem(item: any) {
   const placeId = String(item.id ?? `${item.place_name}:${item.x}:${item.y}`);
   const address = item.road_address_name || item.address_name || "";
+  const categoryKey = inferPlaceCategory({
+    provider: "kakao",
+    categoryName: item.category_name,
+    categoryGroupCode: item.category_group_code,
+    title: item.place_name,
+    description: item.category_name,
+  });
   const details = {
     placeId,
     provider: "kakao",
@@ -30,6 +38,7 @@ function normalizePlaceItem(item: any) {
     lng: Number(item.x),
     phone: item.phone || undefined,
     providerUrl: item.place_url || undefined,
+    categoryKey,
     rawPayload: item ?? null,
   } satisfies PlaceDetails;
 
@@ -40,6 +49,8 @@ function normalizePlaceItem(item: any) {
     title: item.place_name ?? "",
     subtitle: address,
     description: [item.category_name, address].filter(Boolean).join(" · "),
+    categoryGroupCode: item.category_group_code || undefined,
+    categoryKey,
     distanceMeters:
       typeof item.distance === "string" || typeof item.distance === "number"
         ? Number(item.distance)

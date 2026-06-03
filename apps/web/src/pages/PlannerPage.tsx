@@ -9,11 +9,12 @@ import {
 } from "lucide-react";
 import { Link, useSearchParams } from "react-router-dom";
 import type { PlannerStop } from "@travel/shared";
-import { InsightPanel } from "@/components/planner/InsightPanel";
 import { JourneyAnchorCard } from "@/components/planner/JourneyAnchorCard";
 import { PlannerCanvas } from "@/components/planner/PlannerCanvas";
 import { TimelineStopCard } from "@/components/planner/TimelineStopCard";
+import { WeatherPanel } from "@/components/planner/WeatherPanel";
 import { PlaceDetailSheet } from "@/components/places/PlaceDetailSheet";
+import type { PlaceDetail } from "@/lib/placesApi";
 import { buildPreviewTripDetail, reorderStops } from "@/lib/plannerPreview";
 import {
   fetchTripDetail,
@@ -24,6 +25,7 @@ import {
   type PlannerTripDetail,
   type TripListItem,
 } from "@/lib/tripsApi";
+import { fetchTripWeather, type TripWeather } from "@/lib/weatherApi";
 
 const emptySummary = {
   totalDistanceKm: 0,
@@ -62,6 +64,64 @@ function formatStartDate(dateValue: string) {
   return `${date.getMonth() + 1}월 ${date.getDate()}일`;
 }
 
+function addDaysToDate(dateValue: string | undefined, offset: number) {
+  const baseDate = dateValue ? new Date(`${dateValue}T00:00:00`) : new Date();
+
+  if (Number.isNaN(baseDate.getTime())) {
+    return new Date().toISOString().slice(0, 10);
+  }
+
+  baseDate.setDate(baseDate.getDate() + offset);
+  return baseDate.toISOString().slice(0, 10);
+}
+
+function getWeatherPoint(detail: PlannerTripDetail | null) {
+  const firstStopWithCoordinates = detail?.stops.find(
+    (stop) => typeof stop.lat === "number" && typeof stop.lng === "number",
+  );
+
+  if (firstStopWithCoordinates) {
+    return {
+      lat: Number(firstStopWithCoordinates.lat),
+      lng: Number(firstStopWithCoordinates.lng),
+      locationName: firstStopWithCoordinates.name,
+    };
+  }
+
+  const startPoint = detail?.tripConfig.startPoint;
+
+  if (typeof startPoint?.lat === "number" && typeof startPoint?.lng === "number") {
+    return {
+      lat: startPoint.lat,
+      lng: startPoint.lng,
+      locationName: startPoint.name,
+    };
+  }
+
+  return null;
+}
+
+function createPlaceDetailFromStop(stop: PlannerStop): PlaceDetail {
+  return {
+    id: stop.placeId ?? stop.providerPlaceId ?? stop.id,
+    name: stop.name,
+    category: stop.category,
+    categoryKey: stop.categoryKey,
+    address: stop.address ?? "",
+    lat: stop.lat ?? 0,
+    lng: stop.lng ?? 0,
+    region: "",
+    provider: stop.provider ?? "internal",
+    providerPlaceId: stop.providerPlaceId ?? "",
+    phone: stop.phone ?? "",
+    websiteUrl: stop.websiteUrl ?? "",
+    providerUrl: stop.providerUrl ?? "",
+    openingHours: stop.openingHours ?? [],
+    sourceType: "search",
+    lastSyncedAt: null,
+  };
+}
+
 export function PlannerPage() {
   const [searchParams, setSearchParams] = useSearchParams();
   const [tripDetail, setTripDetail] = useState<PlannerTripDetail | null>(null);
@@ -75,6 +135,10 @@ export function PlannerPage() {
   const [dropTargetStopId, setDropTargetStopId] = useState<string | null>(null);
   const [isReordering, setIsReordering] = useState(false);
   const [selectedPlaceId, setSelectedPlaceId] = useState<string | null>(null);
+  const [selectedPlaceDetail, setSelectedPlaceDetail] = useState<PlaceDetail | null>(null);
+  const [weather, setWeather] = useState<TripWeather | null>(null);
+  const [weatherLoading, setWeatherLoading] = useState(false);
+  const [weatherError, setWeatherError] = useState("");
 
   const tripId = searchParams.get("tripId");
   const dayNumber = Number(searchParams.get("day") ?? "1");
@@ -129,6 +193,55 @@ export function PlannerPage() {
       isMounted = false;
     };
   }, [dayNumber, tripId]);
+
+  useEffect(() => {
+    let isMounted = true;
+    const weatherPoint = getWeatherPoint(tripDetail);
+
+    if (!weatherPoint) {
+      setWeather(null);
+      setWeatherError("");
+      setWeatherLoading(false);
+      return;
+    }
+
+    const weatherDate = addDaysToDate(
+      tripDetail?.trip.startDate,
+      Math.max(0, (tripDetail?.selectedDayNumber ?? 1) - 1),
+    );
+
+    setWeatherLoading(true);
+    setWeatherError("");
+
+    fetchTripWeather({
+      ...weatherPoint,
+      date: weatherDate,
+    })
+      .then((nextWeather) => {
+        if (isMounted) {
+          setWeather(nextWeather);
+        }
+      })
+      .catch((weatherLoadError) => {
+        if (isMounted) {
+          setWeather(null);
+          setWeatherError(
+            weatherLoadError instanceof Error
+              ? weatherLoadError.message
+              : "날씨 정보를 불러오는 중 오류가 발생했습니다.",
+          );
+        }
+      })
+      .finally(() => {
+        if (isMounted) {
+          setWeatherLoading(false);
+        }
+      });
+
+    return () => {
+      isMounted = false;
+    };
+  }, [tripDetail]);
 
   function handleDayChange(nextDayNumber: number) {
     if (!tripId) {
@@ -230,7 +343,7 @@ export function PlannerPage() {
   const startPoint = tripDetail?.tripConfig.startPoint ?? null;
   const displayStopsCount = currentStops.length + (startPoint ? 1 : 0);
   const currentSummary = tripDetail?.summary ?? emptySummary;
-  const currentInsights = tripDetail?.insights ?? [];
+  const weatherLocationName = getWeatherPoint(tripDetail)?.locationName;
 
   const savedTrips = useMemo(() => myTrips.filter((item) => item.isSaved), [myTrips]);
   const currentTripItem = useMemo(
@@ -272,7 +385,7 @@ export function PlannerPage() {
             ) : null}
           </div>
 
-          <article className="planner-editor-card">
+          <article className="planner-editor-card planner-day-card">
             <div className="planner-section-title">
               <h2>일차 보기</h2>
               <span className="planner-muted">
@@ -293,7 +406,7 @@ export function PlannerPage() {
             </div>
           </article>
 
-          <article className="planner-editor-card">
+          <article className="planner-editor-card planner-route-list-card">
             <div className="planner-section-title">
               <h2>최적화된 방문 순서</h2>
               <span className="planner-muted">
@@ -334,7 +447,10 @@ export function PlannerPage() {
                       index={index + 1}
                       last={isLastStop}
                       moveModeLabel={getSegmentModeLabel(nextSegment?.mode)}
-                      onOpenDetail={stop.placeId ? () => setSelectedPlaceId(stop.placeId ?? null) : undefined}
+                      onOpenDetail={() => {
+                        setSelectedPlaceId(stop.placeId ?? stop.providerPlaceId ?? stop.id);
+                        setSelectedPlaceDetail(createPlaceDetailFromStop(stop));
+                      }}
                       draggable={currentStops.length > 1 && !isReordering}
                       dragging={draggingStopId === stop.id}
                       dropTarget={dropTargetStopId === stop.id}
@@ -361,7 +477,12 @@ export function PlannerPage() {
             )}
           </article>
 
-          <InsightPanel insights={currentInsights} />
+          <WeatherPanel
+            weather={weather}
+            loading={weatherLoading}
+            error={weatherError}
+            locationName={weatherLocationName}
+          />
         </section>
 
         <div className="planner-main">
@@ -471,7 +592,11 @@ export function PlannerPage() {
       <PlaceDetailSheet
         placeId={selectedPlaceId}
         open={Boolean(selectedPlaceId)}
-        onClose={() => setSelectedPlaceId(null)}
+        providedPlace={selectedPlaceDetail}
+        onClose={() => {
+          setSelectedPlaceId(null);
+          setSelectedPlaceDetail(null);
+        }}
       />
     </div>
   );

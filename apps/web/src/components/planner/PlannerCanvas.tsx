@@ -13,7 +13,6 @@ type PlannerCanvasProps = {
   summary: {
     totalDistanceKm: number;
     totalTravelMinutes: number;
-    optimizationScore: number;
   };
   travelRegion?: TravelRegion;
   showSummary?: boolean;
@@ -342,16 +341,12 @@ export function PlannerCanvas({
       {showSummary ? (
         <div className="planner-summary">
           <div>
-            <span>총 이동 거리</span>
+            <span>{"\uCD1D \uC774\uB3D9 \uAC70\uB9AC"}</span>
             <strong>{summary.totalDistanceKm.toFixed(1)}km</strong>
           </div>
           <div>
-            <span>예상 이동 시간</span>
-            <strong>{summary.totalTravelMinutes}분</strong>
-          </div>
-          <div>
-            <span>동선 점수</span>
-            <strong>{summary.optimizationScore}/100</strong>
+            <span>{"\uC608\uC0C1 \uC774\uB3D9 \uC2DC\uAC04"}</span>
+            <strong>{summary.totalTravelMinutes}{"\uBD84"}</strong>
           </div>
         </div>
       ) : null}

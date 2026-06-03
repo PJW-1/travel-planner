@@ -91,7 +91,6 @@ export function TimelineStopCard({
 
         <div className="timeline-stop__details">
           {stop.address ? <span>{stop.address}</span> : null}
-          <span>혼잡도 {stop.congestion}%</span>
           <span>체류 {stop.stayMinutes}분</span>
           {stop.distanceKm ? <span>이동 {stop.distanceKm.toFixed(1)}km</span> : null}
           {stop.forked ? <span className="status-chip">포크</span> : null}
