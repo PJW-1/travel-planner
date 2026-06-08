@@ -17,6 +17,7 @@ import type { PlannerStop, TravelRegion } from "@travel/shared";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { PlannerCanvas } from "@/components/planner/PlannerCanvas";
 import { PlaceDetailSheet } from "@/components/places/PlaceDetailSheet";
+import { placeCategoryLabels } from "@/lib/placeCategories";
 import {
   createCommunityComment,
   deleteCommunityComment,
@@ -98,6 +99,20 @@ function buildSetupQuery(stop: CommunityRouteDetail["days"][number]["stops"][num
   });
 
   return `/setup?${params.toString()}`;
+}
+
+function getStopMediaVariant(categoryKey: PlannerStop["categoryKey"]) {
+  switch (categoryKey) {
+    case "cafe":
+      return "cafe";
+    case "transport":
+    case "lodging":
+      return "transport";
+    case "view":
+      return "view";
+    default:
+      return "activity";
+  }
 }
 
 export function CommunityRoutePage() {
@@ -480,8 +495,12 @@ export function CommunityRoutePage() {
                           <span>{stop.order}</span>
                         </div>
 
-                        <div className="community-route-stop-card__media">
-                          <span>{stop.order}</span>
+                        <div
+                          className={`community-route-stop-card__media community-route-stop-card__media--${getStopMediaVariant(
+                            stop.categoryKey,
+                          )}`}
+                        >
+                          <span>{placeCategoryLabels[stop.categoryKey] ?? stop.category}</span>
                         </div>
 
                         <div className="community-route-stop-card__body">

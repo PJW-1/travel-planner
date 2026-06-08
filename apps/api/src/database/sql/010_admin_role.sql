@@ -1,6 +1,6 @@
 USE travel;
 
-SET @admin_nickname = CONVERT(0xEAB480EBA6ACECA790 USING utf8mb4);
+SET @admin_nickname = '관리자';
 
 SET @admin_role_sql = IF(
   NOT EXISTS (

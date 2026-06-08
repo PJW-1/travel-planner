@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+﻿import { useEffect, useMemo, useState } from "react";
 import { ArrowRight, MapPin, Plus, Search } from "lucide-react";
 import type { PlaceCategoryKey, PlaceProvider, PlannerStop, TravelRegion } from "@travel/shared";
 import { useNavigate, useSearchParams } from "react-router-dom";
@@ -101,7 +101,7 @@ function isBroadRegionQuery(value: string) {
     "제주",
     "강남",
     "홍대",
-    "성수동",
+    "성수",
   ]).has(query);
 }
 
@@ -271,7 +271,7 @@ function mapFormFromStop(stop: SetupPlannerStop): StopFormState {
 
 function getPlaceSearchPlaceholder(region: TravelRegion) {
   if (region === "korea") return "장소를 검색해보세요";
-  if (region === "japan") return "예: 시부야 스카이, 도쿄역";
+  if (region === "japan") return "예: 시부야 스크램블, 아사쿠사";
   if (region === "europe") return "예: Eiffel Tower, Louvre Museum";
   if (region === "america") return "예: Times Square, LAX";
   return "장소를 검색해보세요";
@@ -729,10 +729,10 @@ export function SetupPage() {
     <div className="single-column-page">
       <PageHeader
         eyebrow={isEditMode ? "일정 수정" : "일정 설정"}
-        title={isEditMode ? "저장한 일정 수정하기" : "새 일정 만들기"}
+        title={isEditMode ? "저장한 일정 수정하기" : "새 여행 일정 만들기"}
         description={
           isEditMode
-            ? "불러온 일정의 장소와 조건을 조정한 뒤 다시 최적화를 진행합니다."
+            ? "불러온 일정의 장소와 조건을 조정한 뒤 다시 최적화를 진행할 수 있습니다."
             : "권역과 이동 조건을 먼저 정하고, 가고 싶은 장소를 순서 없이 담아보세요."
         }
       />
@@ -1008,10 +1008,17 @@ export function SetupPage() {
                         setError("");
                         setStopForm((current) => ({
                           ...current,
+                          placeId: "",
                           name: event.target.value,
                           address: "",
                           lat: null,
                           lng: null,
+                          provider: null,
+                          providerPlaceId: "",
+                          phone: "",
+                          websiteUrl: "",
+                          providerUrl: "",
+                          openingHours: [],
                         }));
                       }
                     }
@@ -1037,10 +1044,10 @@ export function SetupPage() {
                   ))
                 ) : shouldShowBroadRegionHint(tripForm.travelRegion, stopForm.name) ? (
                   <div className="place-suggestion-row__empty">
-                    지역명만으로는 결과가 너무 넓어요. `서울숲`, `성수 카페`, `강남 맛집`처럼 더 구체적으로 입력해보세요.
+                    지역명만으로는 결과가 너무 넓어요. `서울역`, `성수 카페`, `강남 맛집`처럼 더 구체적으로 입력해보세요.
                   </div>
                 ) : (
-                  <div className="place-suggestion-row__empty">두 글자 이상 입력하면 연관 장소가 카드로 나타납니다.</div>
+                  <div className="place-suggestion-row__empty" />
                 )}
               </div>
 

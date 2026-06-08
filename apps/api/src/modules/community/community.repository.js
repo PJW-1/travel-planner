@@ -747,7 +747,7 @@ export async function importCommunityRoute(userId, routeId) {
           stop.stay_minutes,
           stop.map_x,
           stop.map_y,
-          stop.is_forked,
+          false,
         ],
       );
     }
