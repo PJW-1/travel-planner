@@ -1,3 +1,4 @@
+import type { CSSProperties } from "react";
 import { useEffect, useMemo, useState } from "react";
 import {
   Bookmark,
@@ -17,6 +18,7 @@ import type { PlannerStop, TravelRegion } from "@travel/shared";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { PlannerCanvas } from "@/components/planner/PlannerCanvas";
 import { PlaceDetailSheet } from "@/components/places/PlaceDetailSheet";
+import { getDayAccent } from "@/lib/dayAccent";
 import { placeCategoryLabels } from "@/lib/placeCategories";
 import {
   createCommunityComment,
@@ -28,6 +30,7 @@ import {
   toggleCommunityRouteLike,
   type CommunityRouteDetail,
 } from "@/lib/contentApi";
+import type { PlannerRouteSegment } from "@/lib/tripsApi";
 
 function getTransportLabel(value: string) {
   switch (value) {
@@ -115,6 +118,33 @@ function getStopMediaVariant(categoryKey: PlannerStop["categoryKey"]) {
   }
 }
 
+function buildCommunityRouteSegments(route: CommunityRouteDetail): PlannerRouteSegment[] {
+  return route.days.flatMap((day) =>
+    day.stops.flatMap((stop, index, stops) => {
+      const nextStop = stops[index + 1];
+
+      if (!nextStop) {
+        return [];
+      }
+
+      return [
+        {
+          id: `${stop.id}-${nextStop.id}`,
+          label: `${stop.name} -> ${nextStop.name}`,
+          mode: nextStop.transportType || stop.transportType || "walk",
+          distanceKm: Number(nextStop.distanceKm ?? 0),
+          travelMinutes: Number(nextStop.travelMinutes ?? 0),
+          dayNumber: day.dayNumber,
+          path: [
+            { lat: Number(stop.lat), lng: Number(stop.lng) },
+            { lat: Number(nextStop.lat), lng: Number(nextStop.lng) },
+          ],
+        },
+      ];
+    }),
+  );
+}
+
 export function CommunityRoutePage() {
   const navigate = useNavigate();
   const { routeId = "" } = useParams();
@@ -178,6 +208,10 @@ export function CommunityRoutePage() {
   }, [routeId]);
 
   const plannerStops = useMemo(() => (route ? mapRouteStopsToPlannerStops(route) : []), [route]);
+  const plannerRouteSegments = useMemo(
+    () => (route ? buildCommunityRouteSegments(route) : []),
+    [route],
+  );
   const travelRegion = useMemo<TravelRegion>(
     () => (route?.travelRegion as TravelRegion | undefined) ?? "korea",
     [route],
@@ -471,6 +505,7 @@ export function CommunityRoutePage() {
             <article className="community-route-map-card">
               <PlannerCanvas
                 stops={plannerStops}
+                routeSegments={plannerRouteSegments}
                 summary={summary}
                 travelRegion={travelRegion}
                 showSummary={false}
@@ -478,8 +513,24 @@ export function CommunityRoutePage() {
             </article>
 
             <div className="community-route-days">
-              {route.days.map((day) => (
-                <article key={day.id} className="community-route-day-card">
+              {route.days.map((day) => {
+                const dayAccent = getDayAccent(day.dayNumber);
+
+                return (
+                <article
+                  key={day.id}
+                  className="community-route-day-card"
+                  style={
+                    {
+                      "--day-accent": dayAccent.solid,
+                      "--day-deep": dayAccent.deep,
+                      "--day-soft": dayAccent.soft,
+                      "--day-border": dayAccent.border,
+                      "--day-text": dayAccent.text,
+                      "--day-glow": dayAccent.glow,
+                    } as CSSProperties
+                  }
+                >
                   <div className="community-route-day-card__header">
                     <span className="community-route-day-card__badge">Day {day.dayNumber}</span>
                     <div>
@@ -573,7 +624,7 @@ export function CommunityRoutePage() {
                     ))}
                   </div>
                 </article>
-              ))}
+              )})}
             </div>
 
             <article className="community-route-comments">

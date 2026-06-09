@@ -1461,6 +1461,26 @@ function mapPositionForIndex(index) {
   };
 }
 
+function toRouteAnchor(point) {
+  if (!point) {
+    return null;
+  }
+
+  const lat = Number(point.lat);
+  const lng = Number(point.lng);
+
+  if (!Number.isFinite(lat) || !Number.isFinite(lng)) {
+    return null;
+  }
+
+  return {
+    name: String(point.name ?? "").trim() || String(point.address ?? "").trim() || "이전 장소",
+    address: String(point.address ?? "").trim(),
+    lat,
+    lng,
+  };
+}
+
 async function updateDayRoute(connection, dayId, routeResult, routeSegments, tripTheme) {
   const originalStartMinutes =
     routeResult.orderedNodes.length > 0
@@ -1598,7 +1618,7 @@ export async function optimizeTripRoute(userId, tripId, options = {}) {
     const theme = parseJsonValue(trip.theme_json, {});
     const travelRegion = theme.travelRegion ?? "korea";
     const startPoint = normalizeLocationPoint(theme.startPoint);
-    const endPoint = normalizeLocationPoint(theme.endPoint);
+    const endPoint = null;
     const shouldAutoDistribute = Object.keys(manualOrderByDay).length === 0;
     const stopsByDay = new Map();
 
@@ -1629,6 +1649,7 @@ export async function optimizeTripRoute(userId, tripId, options = {}) {
     let carClusterCount = 0;
     let dominantTransportType = "walk";
     const routeSegmentsByDay = {};
+    let carryOverStartAnchor = toRouteAnchor(startPoint);
 
     for (const dayRow of dayRows) {
       const dayStops = stopsByDay.get(dayRow.day_number) ?? [];
@@ -1640,38 +1661,39 @@ export async function optimizeTripRoute(userId, tripId, options = {}) {
       const transportType = dayStops[0].transport_type ?? "walk";
       dominantTransportType = transportType;
       const requestedOrderIds = manualOrderByDay[String(dayRow.day_number)] ?? null;
+      const dayStartAnchor = dayRow.day_number === 1 ? toRouteAnchor(startPoint) : carryOverStartAnchor;
       let routeResult = Array.isArray(requestedOrderIds)
         ? optimizeManualDay(
             dayStops,
             transportType,
-            dayRow.day_number === 1 ? startPoint : null,
+            dayStartAnchor,
             dayRow.day_number === dayRows.length ? endPoint : null,
             requestedOrderIds,
           )
         : transportType === "car"
           ? optimizeCarDay(
               dayStops,
-              dayRow.day_number === 1 ? startPoint : null,
+              dayStartAnchor,
               dayRow.day_number === dayRows.length ? endPoint : null,
             )
           : optimizePublicDay(
               dayStops,
               transportType,
-              dayRow.day_number === 1 ? startPoint : null,
+              dayStartAnchor,
               dayRow.day_number === dayRows.length ? endPoint : null,
             );
 
       if (!Array.isArray(requestedOrderIds)) {
         routeResult = applyMealAndRestSlots(routeResult, {
           transportType,
-          startAnchor: dayRow.day_number === 1 ? startPoint : null,
+          startAnchor: dayStartAnchor,
           tripTheme: theme,
         });
       }
 
       const routeSegments = await buildRouteSegments({
         orderedNodes: routeResult.orderedNodes,
-        startAnchor: dayRow.day_number === 1 ? startPoint : null,
+        startAnchor: dayStartAnchor,
         endAnchor: dayRow.day_number === dayRows.length ? endPoint : null,
         transportType,
         clusterByStopId: routeResult.clusterByStopId,
@@ -1692,6 +1714,9 @@ export async function optimizeTripRoute(userId, tripId, options = {}) {
       totalWalkMinutes += dayMetrics.totalWalkMinutes;
       totalStopCount += routeResult.orderedNodes.length;
       carClusterCount += routeResult.clusterCount;
+
+      const lastNode = routeResult.orderedNodes[routeResult.orderedNodes.length - 1];
+      carryOverStartAnchor = toRouteAnchor(lastNode) ?? carryOverStartAnchor;
     }
 
     const fatigueScore = clamp(

@@ -89,6 +89,7 @@ function buildStraightSegment(
   mode: string,
   from: { lat: number; lng: number },
   to: { lat: number; lng: number },
+  dayNumber?: number,
 ): PlannerRouteSegment {
   const distanceKm = roundTo(haversineDistanceKm(from, to), 2);
   return {
@@ -97,6 +98,7 @@ function buildStraightSegment(
     mode,
     distanceKm,
     travelMinutes: estimateTravelMinutes(distanceKm, mode),
+    dayNumber,
     path: [
       { lat: Number(from.lat), lng: Number(from.lng) },
       { lat: Number(to.lat), lng: Number(to.lng) },
@@ -146,7 +148,6 @@ export function buildPreviewTripDetail(
   const stops = orderedStops.map((stop) => ({ ...stop }));
   const routeSegments: PlannerRouteSegment[] = [];
   const startPoint = tripDetail.tripConfig.startPoint;
-  const endPoint = tripDetail.tripConfig.endPoint;
   let totalDistanceKm = 0;
   let totalTravelMinutes = 0;
   let currentMinutes = stops.length > 0 ? parseTimeToMinutes(stops[0].time) : 10 * 60;
@@ -159,6 +160,7 @@ export function buildPreviewTripDetail(
       firstStop.transportType ?? "walk",
       startPoint,
       firstStop,
+      firstStop.dayNumber,
     );
     routeSegments.push(segment);
     totalDistanceKm += segment.distanceKm;
@@ -196,6 +198,7 @@ export function buildPreviewTripDetail(
         segmentMode,
         stop,
         nextStop,
+        stop.dayNumber,
       ),
     );
 
@@ -205,22 +208,6 @@ export function buildPreviewTripDetail(
 
     return updatedStop;
   });
-
-  const lastStop = remappedStops[remappedStops.length - 1];
-
-  if (lastStop && isValidStopPoint(lastStop) && isValidPoint(endPoint)) {
-    const segment = buildStraightSegment(
-      `${lastStop.id}-end`,
-      `${lastStop.name} -> ${endPoint.name}`,
-      lastStop.transportType ?? "walk",
-      lastStop,
-      endPoint,
-    );
-    routeSegments.push(segment);
-    totalDistanceKm += segment.distanceKm;
-    totalTravelMinutes += segment.travelMinutes;
-  }
-
   return {
     ...tripDetail,
     stops: remappedStops,

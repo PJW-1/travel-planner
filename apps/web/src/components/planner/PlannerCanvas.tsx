@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { PlannerStop, TravelRegion } from "@travel/shared";
 import type { PlannerRouteSegment, TripLocationPoint } from "@/lib/tripsApi";
+import { getDayAccent } from "@/lib/dayAccent";
 import { loadGoogleMaps } from "@/lib/googleMaps";
 import { loadKakaoMaps } from "@/lib/kakaoMaps";
 import { getMapProvider } from "@/lib/travelRegion";
@@ -8,7 +9,6 @@ import { getMapProvider } from "@/lib/travelRegion";
 type PlannerCanvasProps = {
   stops: PlannerStop[];
   startPoint?: TripLocationPoint | null;
-  endPoint?: TripLocationPoint | null;
   routeSegments?: PlannerRouteSegment[];
   summary: {
     totalDistanceKm: number;
@@ -18,17 +18,18 @@ type PlannerCanvasProps = {
   showSummary?: boolean;
 };
 
-const stopMarkerColor = "#2563eb";
-
-const segmentColors: Record<string, string> = {
-  walk: "#0f766e",
-  subway: "#7c3aed",
-  bus: "#ea580c",
-  car: "#2563eb",
-  taxi: "#0f172a",
-};
-
 const fallbackCenter = { lat: 37.5665, lng: 126.978 };
+const overlapClusterDistanceKm = 0.2;
+const overlapOffsetBaseMeters = 28;
+const overlapOffsetStepMeters = 10;
+
+type MarkerDisplayItem = {
+  key: string;
+  lat: number;
+  lng: number;
+  displayLat: number;
+  displayLng: number;
+};
 
 function createTooltipHtml(label: string) {
   return `<div style="padding:6px 8px;border-radius:12px;background:#fff;border:1px solid rgba(15,23,42,.08);box-shadow:0 10px 24px rgba(15,23,42,.12);font-size:12px;font-weight:700;color:#0f172a;white-space:nowrap;">${label}</div>`;
@@ -57,10 +58,99 @@ function createMarkerSvg(color: string, order: number | string) {
   `)}`;
 }
 
+function toRadians(value: number) {
+  return (value * Math.PI) / 180;
+}
+
+function haversineDistanceKm(
+  from: { lat: number; lng: number },
+  to: { lat: number; lng: number },
+) {
+  const earthRadiusKm = 6371;
+  const dLat = toRadians(to.lat - from.lat);
+  const dLng = toRadians(to.lng - from.lng);
+  const lat1 = toRadians(from.lat);
+  const lat2 = toRadians(to.lat);
+  const a =
+    Math.sin(dLat / 2) ** 2 +
+    Math.sin(dLng / 2) ** 2 * Math.cos(lat1) * Math.cos(lat2);
+
+  return earthRadiusKm * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+}
+
+function offsetLatLng(lat: number, lng: number, distanceMeters: number, angleRadians: number) {
+  const metersPerDegreeLat = 111320;
+  const metersPerDegreeLng = Math.max(111320 * Math.cos(toRadians(lat)), 1);
+  const latOffset = (Math.sin(angleRadians) * distanceMeters) / metersPerDegreeLat;
+  const lngOffset = (Math.cos(angleRadians) * distanceMeters) / metersPerDegreeLng;
+
+  return {
+    lat: lat + latOffset,
+    lng: lng + lngOffset,
+  };
+}
+
+function spreadOverlappingMarkers(items: MarkerDisplayItem[]) {
+  const groups: MarkerDisplayItem[][] = [];
+
+  items.forEach((item) => {
+    const existingGroup = groups.find((group) =>
+      group.some((candidate) => haversineDistanceKm(candidate, item) <= overlapClusterDistanceKm),
+    );
+
+    if (existingGroup) {
+      existingGroup.push(item);
+      return;
+    }
+
+    groups.push([item]);
+  });
+
+  return groups.flatMap((group) => {
+    if (group.length === 1) {
+      return group;
+    }
+
+    const center = {
+      lat: group.reduce((sum, item) => sum + item.lat, 0) / group.length,
+      lng: group.reduce((sum, item) => sum + item.lng, 0) / group.length,
+    };
+
+    return group.map((item, index) => {
+      const angle = (-Math.PI / 2) + (Math.PI * 2 * index) / group.length;
+      const radiusMeters =
+        overlapOffsetBaseMeters + Math.max(0, group.length - 2) * overlapOffsetStepMeters;
+      const nextPosition = offsetLatLng(center.lat, center.lng, radiusMeters, angle);
+
+      return {
+        ...item,
+        displayLat: nextPosition.lat,
+        displayLng: nextPosition.lng,
+      };
+    });
+  });
+}
+
+function getStopAccentColor(stop: PlannerStop) {
+  return getDayAccent(stop.dayNumber ?? 1).solid;
+}
+
+function getAnchorAccentColor(stops: PlannerStop[]) {
+  if (stops.length === 0) {
+    return "#1d4ed8";
+  }
+
+  return getDayAccent(stops[0].dayNumber ?? 1).solid;
+}
+
+function getSegmentStrokeColor(mode: string, dayNumber: number | undefined) {
+  const accent = getDayAccent(dayNumber ?? 1);
+  return mode === "walk" ? accent.deep : accent.solid;
+}
+
 export function PlannerCanvas({
   stops,
   startPoint = null,
-  endPoint = null,
   routeSegments = [],
   summary,
   travelRegion = "korea",
@@ -83,10 +173,28 @@ export function PlannerCanvas({
     [stops],
   );
 
-  const anchorPoints = useMemo(
-    () => [startPoint, endPoint].filter(hasPoint),
-    [startPoint, endPoint],
-  );
+  const anchorPoints = useMemo(() => [startPoint].filter(hasPoint), [startPoint]);
+
+  const displayMarkerPositions = useMemo(() => {
+    const stopItems = geoStops.map((stop, index) => ({
+      key: `stop-${stop.id}-${index}`,
+      lat: stop.lat!,
+      lng: stop.lng!,
+      displayLat: stop.lat!,
+      displayLng: stop.lng!,
+    }));
+    const anchorItems = anchorPoints.map((point, index) => ({
+      key: `anchor-${index}-${point.name}`,
+      lat: point.lat,
+      lng: point.lng,
+      displayLat: point.lat,
+      displayLng: point.lng,
+    }));
+
+    return new Map(
+      spreadOverlappingMarkers([...stopItems, ...anchorItems]).map((item) => [item.key, item]),
+    );
+  }, [anchorPoints, geoStops]);
 
   useEffect(() => {
     let isMounted = true;
@@ -117,13 +225,17 @@ export function PlannerCanvas({
       };
 
       geoStops.forEach((stop, index) => {
-        const position = new kakao.maps.LatLng(stop.lat!, stop.lng!);
+        const markerPosition = displayMarkerPositions.get(`stop-${stop.id}-${index}`) ?? null;
+        const position = new kakao.maps.LatLng(
+          markerPosition?.displayLat ?? stop.lat!,
+          markerPosition?.displayLng ?? stop.lng!,
+        );
         const marker = new kakao.maps.Marker({
           map,
           position,
           title: stop.name,
           image: new kakao.maps.MarkerImage(
-            createMarkerSvg(stopMarkerColor, index + 1),
+            createMarkerSvg(getStopAccentColor(stop), index + 1),
             new kakao.maps.Size(44, 56),
             { offset: new kakao.maps.Point(22, 54) },
           ),
@@ -150,13 +262,17 @@ export function PlannerCanvas({
       });
 
       anchorPoints.forEach((point, index) => {
-        const position = new kakao.maps.LatLng(point.lat, point.lng);
+        const markerPosition = displayMarkerPositions.get(`anchor-${index}-${point.name}`) ?? null;
+        const position = new kakao.maps.LatLng(
+          markerPosition?.displayLat ?? point.lat,
+          markerPosition?.displayLng ?? point.lng,
+        );
         const marker = new kakao.maps.Marker({
           map,
           position,
           title: point.name,
           image: new kakao.maps.MarkerImage(
-            createMarkerSvg(index === 0 ? "#0f766e" : "#7c3aed", index === 0 ? "S" : "E"),
+            createMarkerSvg(getAnchorAccentColor(geoStops), "S"),
             new kakao.maps.Size(44, 56),
             { offset: new kakao.maps.Point(22, 54) },
           ),
@@ -164,7 +280,7 @@ export function PlannerCanvas({
 
         let hoverOverlay: any = null;
         kakao.maps.event.addListener(marker, "mouseover", () => {
-          hoverOverlay = openHover(position, `${index === 0 ? "출발지" : "종료지"} · ${point.name}`);
+          hoverOverlay = openHover(position, `출발지 · ${point.name}`);
         });
         kakao.maps.event.addListener(marker, "mouseout", () => {
           hoverOverlay?.setMap(null);
@@ -183,7 +299,7 @@ export function PlannerCanvas({
           map,
           path,
           strokeWeight: segment.mode === "walk" ? 4 : 5,
-          strokeColor: segmentColors[segment.mode] ?? "#2563eb",
+          strokeColor: getSegmentStrokeColor(segment.mode, segment.dayNumber),
           strokeOpacity: 0.9,
           strokeStyle: segment.mode === "walk" ? "shortdash" : "solid",
         });
@@ -232,12 +348,16 @@ export function PlannerCanvas({
       const infoWindow = new google.maps.InfoWindow();
 
       geoStops.forEach((stop, index) => {
+        const markerPosition = displayMarkerPositions.get(`stop-${stop.id}-${index}`) ?? null;
         const marker = new google.maps.Marker({
           map,
-          position: { lat: stop.lat!, lng: stop.lng! },
+          position: {
+            lat: markerPosition?.displayLat ?? stop.lat!,
+            lng: markerPosition?.displayLng ?? stop.lng!,
+          },
           title: stop.name,
           icon: {
-            url: createMarkerSvg(stopMarkerColor, index + 1),
+            url: createMarkerSvg(getStopAccentColor(stop), index + 1),
             scaledSize: new google.maps.Size(44, 56),
           },
         });
@@ -259,15 +379,25 @@ export function PlannerCanvas({
       });
 
       anchorPoints.forEach((point, index) => {
+        const markerPosition = displayMarkerPositions.get(`anchor-${index}-${point.name}`) ?? null;
         const marker = new google.maps.Marker({
           map,
-          position: { lat: point.lat, lng: point.lng },
+          position: {
+            lat: markerPosition?.displayLat ?? point.lat,
+            lng: markerPosition?.displayLng ?? point.lng,
+          },
           title: point.name,
           icon: {
-            url: createMarkerSvg(index === 0 ? "#0f766e" : "#7c3aed", index === 0 ? "S" : "E"),
+            url: createMarkerSvg(getAnchorAccentColor(geoStops), "S"),
             scaledSize: new google.maps.Size(44, 56),
           },
         });
+
+        marker.addListener("mouseover", () => {
+          infoWindow.setContent(createTooltipHtml(`출발지 · ${point.name}`));
+          infoWindow.open({ map, anchor: marker });
+        });
+        marker.addListener("mouseout", () => infoWindow.close());
 
         overlaysRef.current.push(marker);
         bounds.extend(marker.getPosition()!);
@@ -279,7 +409,7 @@ export function PlannerCanvas({
         const polyline = new google.maps.Polyline({
           map,
           path: segment.path,
-          strokeColor: segmentColors[segment.mode] ?? "#2563eb",
+          strokeColor: getSegmentStrokeColor(segment.mode, segment.dayNumber),
           strokeOpacity: 0.9,
           strokeWeight: segment.mode === "walk" ? 4 : 5,
         });
@@ -320,9 +450,7 @@ export function PlannerCanvas({
         setMapError("");
       } catch (error) {
         if (isMounted) {
-          setMapError(
-            error instanceof Error ? error.message : "지도를 불러오는 중 오류가 발생했습니다.",
-          );
+          setMapError(error instanceof Error ? error.message : "지도를 불러오지 못했습니다.");
         }
       }
     }
@@ -334,19 +462,19 @@ export function PlannerCanvas({
       overlaysRef.current.forEach((overlay) => overlay?.setMap?.(null));
       overlaysRef.current = [];
     };
-  }, [anchorPoints, geoStops, provider, routeSegments]);
+  }, [anchorPoints, displayMarkerPositions, geoStops, provider, routeSegments]);
 
   return (
     <section className="planner-canvas">
       {showSummary ? (
         <div className="planner-summary">
           <div>
-            <span>{"\uCD1D \uC774\uB3D9 \uAC70\uB9AC"}</span>
+            <span>총 이동 거리</span>
             <strong>{summary.totalDistanceKm.toFixed(1)}km</strong>
           </div>
           <div>
-            <span>{"\uC608\uC0C1 \uC774\uB3D9 \uC2DC\uAC04"}</span>
-            <strong>{summary.totalTravelMinutes}{"\uBD84"}</strong>
+            <span>예상 이동 시간</span>
+            <strong>{summary.totalTravelMinutes}분</strong>
           </div>
         </div>
       ) : null}
@@ -356,7 +484,7 @@ export function PlannerCanvas({
       {stops.length === 0 && !startPoint ? (
         <div className="planner-canvas__empty">
           <strong>아직 배치된 장소가 없습니다.</strong>
-          <p>Setup에서 장소를 추가하면 실제 지도 위에 경로가 함께 표시됩니다.</p>
+          <p>Setup에서 장소를 추가하면 지도 위에 동선이 바로 표시됩니다.</p>
         </div>
       ) : null}
 

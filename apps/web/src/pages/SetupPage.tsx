@@ -36,8 +36,6 @@ type TripFormState = {
   transportType: string;
   travelRegion: TravelRegion;
   startPoint: TripLocationPoint | null;
-  useCustomEndPoint: boolean;
-  endPoint: TripLocationPoint | null;
 };
 
 type StopFormState = {
@@ -64,7 +62,7 @@ type SetupPlannerStop = PlannerStop & {
   visitTimeMode?: "auto" | "manual";
 };
 
-type JourneyPointField = "start" | "end";
+type JourneyPointField = "start";
 
 const MAP_POSITIONS = [
   { x: 18, y: 52 },
@@ -118,8 +116,6 @@ function createDefaultTripForm(): TripFormState {
     transportType: "walk",
     travelRegion: "korea",
     startPoint: null,
-    useCustomEndPoint: false,
-    endPoint: null,
   };
 }
 
@@ -154,12 +150,11 @@ function createTempId() {
 }
 
 function deriveTripDestination(
-  tripForm: Pick<TripFormState, "startPoint" | "endPoint" | "travelRegion">,
+  tripForm: Pick<TripFormState, "startPoint" | "travelRegion">,
   stops: SetupPlannerStop[],
 ) {
   return (
     tripForm.startPoint?.name?.trim() ||
-    tripForm.endPoint?.name?.trim() ||
     stops[0]?.name?.trim() ||
     getTravelRegionLabel(tripForm.travelRegion)
   );
@@ -299,7 +294,7 @@ export function SetupPage() {
   const [searchingPlaces, setSearchingPlaces] = useState(false);
   const [suggestions, setSuggestions] = useState<PlaceSuggestion[]>([]);
   const [journeyPointField, setJourneyPointField] = useState<JourneyPointField | null>(null);
-  const [journeyPointQuery, setJourneyPointQuery] = useState({ start: "", end: "" });
+  const [journeyPointQuery, setJourneyPointQuery] = useState("");
   const [journeyPointSuggestions, setJourneyPointSuggestions] = useState<PlaceSuggestion[]>([]);
   const [searchingJourneyPoints, setSearchingJourneyPoints] = useState(false);
   const [selectedPlaceId, setSelectedPlaceId] = useState<string | null>(null);
@@ -329,7 +324,7 @@ export function SetupPage() {
         setStopForm(createDefaultStopForm());
         setPlannedStops([]);
         setOriginalStopIds([]);
-        setJourneyPointQuery({ start: "", end: "" });
+        setJourneyPointQuery("");
         return;
       }
 
@@ -355,16 +350,11 @@ export function SetupPage() {
           transportType: allStops[0]?.transportType ?? "walk",
           travelRegion: firstDay.tripConfig.travelRegion ?? "korea",
           startPoint: firstDay.tripConfig.startPoint,
-          useCustomEndPoint: Boolean(firstDay.tripConfig.endPoint),
-          endPoint: firstDay.tripConfig.endPoint,
         });
         setPlannedStops(allStops.map((stop) => ({ ...stop, visitTimeMode: "auto" })));
         setOriginalStopIds(allStops.map((stop) => stop.id));
         setStopForm(createDefaultStopForm());
-        setJourneyPointQuery({
-          start: firstDay.tripConfig.startPoint?.name ?? "",
-          end: firstDay.tripConfig.endPoint?.name ?? "",
-        });
+        setJourneyPointQuery(firstDay.tripConfig.startPoint?.name ?? "");
       } catch (loadError) {
         if (isMounted) {
           setError(loadError instanceof Error ? loadError.message : "일정을 불러오지 못했습니다.");
@@ -497,7 +487,7 @@ export function SetupPage() {
       return;
     }
 
-    const query = journeyPointQuery[journeyPointField].trim();
+    const query = journeyPointQuery.trim();
 
     if (query.length < 2) {
       setJourneyPointSuggestions([]);
@@ -592,13 +582,11 @@ export function SetupPage() {
   function handleJourneyPointInput(field: JourneyPointField, value: string) {
     setError("");
     setJourneyPointField(field);
-    setJourneyPointQuery((current) => ({ ...current, [field]: value }));
-    setTripForm((current) =>
-      field === "start" ? { ...current, startPoint: null } : { ...current, endPoint: null },
-    );
+    setJourneyPointQuery(value);
+    setTripForm((current) => ({ ...current, startPoint: null }));
   }
 
-  async function handleSelectJourneyPoint(field: JourneyPointField, suggestion: PlaceSuggestion) {
+  async function handleSelectJourneyPoint(_field: JourneyPointField, suggestion: PlaceSuggestion) {
     try {
       const details = await fetchPlaceDetailsByRegion(tripForm.travelRegion, suggestion.placeId);
       const nextPoint = {
@@ -608,17 +596,13 @@ export function SetupPage() {
         lng: details.lng,
       };
 
-      setTripForm((current) =>
-        field === "start"
-          ? { ...current, startPoint: nextPoint }
-          : { ...current, endPoint: nextPoint },
-      );
-      setJourneyPointQuery((current) => ({ ...current, [field]: nextPoint.name }));
+      setTripForm((current) => ({ ...current, startPoint: nextPoint }));
+      setJourneyPointQuery(nextPoint.name);
       setJourneyPointField(null);
       setJourneyPointSuggestions([]);
       setError("");
     } catch (selectError) {
-      setError(selectError instanceof Error ? selectError.message : "출발지/종료지를 불러오지 못했습니다.");
+      setError(selectError instanceof Error ? selectError.message : "출발지를 불러오지 못했습니다.");
     }
   }
 
@@ -668,7 +652,7 @@ export function SetupPage() {
           tags: [],
           travelRegion: tripForm.travelRegion,
           startPoint: tripForm.startPoint,
-          endPoint: tripForm.useCustomEndPoint ? tripForm.endPoint : null,
+          endPoint: null,
         });
 
         for (const stopId of originalStopIds) {
@@ -685,7 +669,7 @@ export function SetupPage() {
           tags: [],
           travelRegion: tripForm.travelRegion,
           startPoint: tripForm.startPoint,
-          endPoint: tripForm.useCustomEndPoint ? tripForm.endPoint : null,
+          endPoint: null,
         });
 
         tripId = created.trip.trip.id;
@@ -856,7 +840,7 @@ export function SetupPage() {
               <div className="place-search-card__input">
                 <Search size={18} />
                 <input
-                  value={journeyPointQuery.start}
+                  value={journeyPointQuery}
                   placeholder={`${getTravelRegionLabel(tripForm.travelRegion)}에서 출발지를 검색해보세요`}
                   onFocus={() => setJourneyPointField("start")}
                   onChange={(event) => handleJourneyPointInput("start", event.target.value)}
@@ -898,81 +882,6 @@ export function SetupPage() {
                   <strong>{tripForm.startPoint.name}</strong>
                   <p>{tripForm.startPoint.address}</p>
                 </div>
-              </div>
-            ) : null}
-
-            <label className="planner-checkbox">
-              <input
-                type="checkbox"
-                checked={tripForm.useCustomEndPoint}
-                onChange={(event) => {
-                  const checked = event.target.checked;
-
-                  setTripForm((current) => ({
-                    ...current,
-                    useCustomEndPoint: checked,
-                    endPoint: checked ? current.endPoint : null,
-                  }));
-
-                  if (!checked) {
-                    setJourneyPointQuery((current) => ({ ...current, end: "" }));
-                    setJourneyPointSuggestions([]);
-                    setJourneyPointField((current) => (current === "end" ? null : current));
-                  }
-                }}
-              />
-              <span>종료지는 따로 설정할게요</span>
-            </label>
-
-            {tripForm.useCustomEndPoint ? (
-              <div className="journey-point-card__optional">
-                <label className="planner-field">
-                  <span>종료지</span>
-                  <div className="place-search-card__input">
-                    <Search size={18} />
-                    <input
-                      value={journeyPointQuery.end}
-                      placeholder={`${getTravelRegionLabel(tripForm.travelRegion)}에서 종료지를 검색해보세요`}
-                      onFocus={() => setJourneyPointField("end")}
-                      onChange={(event) => handleJourneyPointInput("end", event.target.value)}
-                    />
-                  </div>
-                </label>
-
-                {journeyPointField === "end" ? (
-                  <div className="journey-point-card__suggestions">
-                    {searchingJourneyPoints ? (
-                      <div className="place-suggestion-row__empty">종료지를 찾는 중입니다...</div>
-                    ) : journeyPointSuggestions.length > 0 ? (
-                      <div className="place-suggestion-row">
-                        {journeyPointSuggestions.map((suggestion) => (
-                          <button
-                            key={suggestion.placeId}
-                            type="button"
-                            className="place-suggestion-card place-suggestion-card--compact"
-                            onClick={() => handleSelectJourneyPoint("end", suggestion)}
-                          >
-                            <span className="place-suggestion-card__label">종료지 추천</span>
-                            <strong>{suggestion.title}</strong>
-                            <p>{suggestion.subtitle || suggestion.description}</p>
-                          </button>
-                        ))}
-                      </div>
-                    ) : (
-                      <div className="place-suggestion-row__empty">종료지를 따로 두고 싶다면 장소를 검색해보세요.</div>
-                    )}
-                  </div>
-                ) : null}
-
-                {tripForm.endPoint ? (
-                  <div className="place-selected-card place-selected-card--compact">
-                    <MapPin size={16} />
-                    <div>
-                      <strong>{tripForm.endPoint.name}</strong>
-                      <p>{tripForm.endPoint.address}</p>
-                    </div>
-                  </div>
-                ) : null}
               </div>
             ) : null}
           </div>

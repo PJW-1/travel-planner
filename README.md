@@ -52,3 +52,21 @@ npm run infra:up
 npm run infra:logs
 npm run infra:down
 ```
+
+## Showcase reseed
+
+If you want the same demo/community data used in the current local showcase, apply the reset file first and then the snapshot seed.
+
+PowerShell:
+
+```powershell
+Get-Content .\apps\api\src\database\sql\011_reset_to_admin_only.sql | mysql -h 127.0.0.1 -P 3306 -u root -p2364 -D travel
+Get-Content .\apps\api\src\database\sql\013_showcase_snapshot.sql | mysql -h 127.0.0.1 -P 3306 -u root -p2364 -D travel
+```
+
+The snapshot contains:
+
+- 10 showcase community routes
+- Korean and overseas car-route examples
+- likes, bookmarks, comments, trend cards
+- planner/community-linked trip, day, stop, and analysis data

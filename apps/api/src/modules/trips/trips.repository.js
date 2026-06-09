@@ -190,6 +190,31 @@ function normalizeLocationPoint(value) {
   };
 }
 
+async function getSelectedDayStartPoint(connection, tripId, selectedDayNumber, fallbackStartPoint) {
+  if (selectedDayNumber <= 1) {
+    return normalizeLocationPoint(fallbackStartPoint);
+  }
+
+  const [rows] = await connection.execute(
+    `
+      SELECT
+        p.name,
+        p.address,
+        p.lat,
+        p.lng
+      FROM trip_stops ts
+      INNER JOIN trip_days td ON td.id = ts.trip_day_id
+      INNER JOIN places p ON p.id = ts.place_id
+      WHERE td.trip_id = ? AND td.day_number < ?
+      ORDER BY td.day_number DESC, ts.stop_order DESC, ts.id DESC
+      LIMIT 1
+    `,
+    [tripId, selectedDayNumber],
+  );
+
+  return normalizeLocationPoint(rows[0] ?? null) ?? normalizeLocationPoint(fallbackStartPoint);
+}
+
 function buildThemeJson({
   lunchTime,
   dinnerTime,
@@ -257,9 +282,28 @@ function mapStop(row) {
 
 function buildSummary(stopRows, analysisRow) {
   if (analysisRow) {
+    const payload = parseJsonValue(analysisRow.warning_json, {});
+    const removedEndSegments = Object.values(payload?.routeSegmentsByDay ?? {})
+      .flatMap((segments) => (Array.isArray(segments) ? segments : []))
+      .filter((segment) => String(segment?.id ?? "").endsWith("-end"));
+
+    const removedDistanceKm = removedEndSegments.reduce(
+      (sum, segment) => sum + Number(segment?.distanceKm ?? 0),
+      0,
+    );
+    const removedTravelMinutes = removedEndSegments.reduce(
+      (sum, segment) => sum + Number(segment?.travelMinutes ?? 0),
+      0,
+    );
+
     return {
-      totalDistanceKm: Number(analysisRow.total_distance_km ?? 0),
-      totalTravelMinutes: Number(analysisRow.total_travel_minutes ?? 0),
+      totalDistanceKm: Number(
+        Math.max(0, Number(analysisRow.total_distance_km ?? 0) - removedDistanceKm).toFixed(1),
+      ),
+      totalTravelMinutes: Math.max(
+        0,
+        Number(analysisRow.total_travel_minutes ?? 0) - removedTravelMinutes,
+      ),
       optimizationScore: Number(analysisRow.optimization_score ?? 0),
     };
   }
@@ -334,21 +378,23 @@ function getRouteSegmentsForDay(analysisRow, dayNumber) {
     return [];
   }
 
-  return daySegments.map((segment) => ({
-    id: String(segment.id),
-    label: String(segment.label ?? ""),
-    mode: String(segment.mode ?? "walk"),
-    distanceKm: Number(segment.distanceKm ?? 0),
-    travelMinutes: Number(segment.travelMinutes ?? 0),
-    path: Array.isArray(segment.path)
-      ? segment.path
-          .map((point) => ({
-            lat: Number(point.lat),
-            lng: Number(point.lng),
-          }))
-          .filter((point) => Number.isFinite(point.lat) && Number.isFinite(point.lng))
-      : [],
-  }));
+  return daySegments
+    .filter((segment) => !String(segment?.id ?? "").endsWith("-end"))
+    .map((segment) => ({
+      id: String(segment.id),
+      label: String(segment.label ?? ""),
+      mode: String(segment.mode ?? "walk"),
+      distanceKm: Number(segment.distanceKm ?? 0),
+      travelMinutes: Number(segment.travelMinutes ?? 0),
+      path: Array.isArray(segment.path)
+        ? segment.path
+            .map((point) => ({
+              lat: Number(point.lat),
+              lng: Number(point.lng),
+            }))
+            .filter((point) => Number.isFinite(point.lat) && Number.isFinite(point.lng))
+        : [],
+    }));
 }
 
 async function getLatestTripAnalysis(connection, tripId) {
@@ -615,6 +661,12 @@ export async function getTripDetail(userId, tripId, dayNumberInput = 1) {
   const summary = buildSummary(stopRows, analysis);
   const insights = buildInsights(stopRows, summary, analysis);
   const theme = parseJsonValue(trip.theme_json, {});
+  const effectiveStartPoint = await getSelectedDayStartPoint(
+    db,
+    tripIdNumber,
+    selectedDayNumber,
+    theme.startPoint,
+  );
 
   return {
     trip: {
@@ -636,8 +688,8 @@ export async function getTripDetail(userId, tripId, dayNumberInput = 1) {
       dinnerTime: theme.dinnerTime ?? "18:30",
       tags: normalizeTags(theme.tags),
       travelRegion: normalizeTravelRegion(theme.travelRegion),
-      startPoint: normalizeLocationPoint(theme.startPoint),
-      endPoint: normalizeLocationPoint(theme.endPoint),
+      startPoint: effectiveStartPoint,
+      endPoint: null,
     },
     days: dayRows.map((row) => ({
       id: String(row.id),
@@ -665,7 +717,7 @@ export async function createTrip(userId, payload) {
   const tags = normalizeTags(payload.tags);
   const travelRegion = normalizeTravelRegion(payload.travelRegion);
   const startPoint = normalizeLocationPoint(payload.startPoint);
-  const endPoint = normalizeLocationPoint(payload.endPoint);
+  const endPoint = null;
   const tripId = createId();
 
   try {
@@ -744,7 +796,7 @@ export async function updateTrip(userId, tripId, payload) {
     const tags = normalizeTags(payload.tags ?? currentTheme.tags);
     const travelRegion = normalizeTravelRegion(payload.travelRegion ?? currentTheme.travelRegion);
     const startPoint = normalizeLocationPoint(payload.startPoint ?? currentTheme.startPoint);
-    const endPoint = normalizeLocationPoint(payload.endPoint ?? currentTheme.endPoint);
+    const endPoint = null;
 
     const [stopCountRows] = await connection.execute(
       `

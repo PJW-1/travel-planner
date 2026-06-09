@@ -1,3 +1,4 @@
+import type { CSSProperties } from "react";
 import { useEffect, useMemo, useState } from "react";
 import {
   ArrowLeft,
@@ -13,6 +14,7 @@ import { JourneyAnchorCard } from "@/components/planner/JourneyAnchorCard";
 import { PlannerCanvas } from "@/components/planner/PlannerCanvas";
 import { TimelineStopCard } from "@/components/planner/TimelineStopCard";
 import { WeatherPanel } from "@/components/planner/WeatherPanel";
+import { getDayAccent } from "@/lib/dayAccent";
 import { PlaceDetailSheet } from "@/components/places/PlaceDetailSheet";
 import type { PlaceDetail } from "@/lib/placesApi";
 import { buildPreviewTripDetail, reorderStops } from "@/lib/plannerPreview";
@@ -48,6 +50,29 @@ function getSegmentModeLabel(mode?: string) {
     default:
       return null;
   }
+}
+
+function getParkingHintForStop(
+  stopIndex: number,
+  routeSegments: PlannerRouteSegment[],
+  hasStartPoint: boolean,
+) {
+  const nextSegmentIndex = hasStartPoint ? stopIndex + 1 : stopIndex;
+  const nextSegment = routeSegments[nextSegmentIndex];
+
+  if (nextSegment?.mode !== "walk") {
+    return null;
+  }
+
+  const previousSegmentIndex = hasStartPoint ? stopIndex : stopIndex - 1;
+  const previousSegment =
+    previousSegmentIndex >= 0 ? routeSegments[previousSegmentIndex] : null;
+
+  if (previousSegment?.mode === "walk") {
+    return null;
+  }
+
+  return "이곳에 주차 후 도보";
 }
 
 function formatStartDate(dateValue: string) {
@@ -341,7 +366,7 @@ export function PlannerPage() {
   const currentStops: PlannerStop[] = tripDetail?.stops ?? [];
   const currentRouteSegments: PlannerRouteSegment[] = tripDetail?.routeSegments ?? [];
   const startPoint = tripDetail?.tripConfig.startPoint ?? null;
-  const displayStopsCount = currentStops.length + (startPoint ? 1 : 0);
+  const displayStopsCount = currentStops.length;
   const currentSummary = tripDetail?.summary ?? emptySummary;
   const weatherLocationName = getWeatherPoint(tripDetail)?.locationName;
 
@@ -351,6 +376,8 @@ export function PlannerPage() {
     [savedTrips, tripId],
   );
   const isSaved = Boolean(tripDetail?.trip.isSaved);
+  const selectedDayAccent = getDayAccent(tripDetail?.selectedDayNumber ?? 1);
+  const isCarryOverStart = (tripDetail?.selectedDayNumber ?? 1) > 1 && Boolean(startPoint);
 
   return (
     <div className="planner-page">
@@ -393,20 +420,43 @@ export function PlannerPage() {
               </span>
             </div>
 
-            <div className="day-switcher">
-              {(tripDetail?.days ?? []).map((day) => (
-                <button
-                  key={day.id}
-                  className={day.dayNumber === tripDetail?.selectedDayNumber ? "is-active" : ""}
-                  onClick={() => handleDayChange(day.dayNumber)}
-                >
-                  {day.dayNumber}
+              <div className="day-switcher">
+                {(tripDetail?.days ?? []).map((day) => (
+                  <button
+                    key={day.id}
+                    className={day.dayNumber === tripDetail?.selectedDayNumber ? "is-active" : ""}
+                    style={{
+                      color:
+                        day.dayNumber === tripDetail?.selectedDayNumber
+                          ? "#ffffff"
+                          : getDayAccent(day.dayNumber).text,
+                      background:
+                        day.dayNumber === tripDetail?.selectedDayNumber
+                          ? getDayAccent(day.dayNumber).solid
+                          : getDayAccent(day.dayNumber).soft,
+                      border: `1px solid ${getDayAccent(day.dayNumber).border}`,
+                      boxShadow:
+                        day.dayNumber === tripDetail?.selectedDayNumber
+                          ? `0 10px 20px ${getDayAccent(day.dayNumber).glow}`
+                          : "none",
+                    }}
+                    onClick={() => handleDayChange(day.dayNumber)}
+                  >
+                    {day.dayNumber}
                 </button>
               ))}
             </div>
           </article>
 
-          <article className="planner-editor-card planner-route-list-card">
+          <article
+            className="planner-editor-card planner-route-list-card"
+            style={
+              {
+                "--planner-day-soft": selectedDayAccent.soft,
+                "--planner-day-border": selectedDayAccent.border,
+              } as CSSProperties
+            }
+          >
             <div className="planner-section-title">
               <h2>최적화된 방문 순서</h2>
               <span className="planner-muted">
@@ -433,12 +483,22 @@ export function PlannerPage() {
                     showConnector={currentStops.length > 0}
                     moveModeLabel={getSegmentModeLabel(currentRouteSegments[0]?.mode)}
                     moveMinutes={currentRouteSegments[0]?.travelMinutes ?? currentStops[0]?.travelMinutes}
+                    accent={selectedDayAccent}
+                    label={isCarryOverStart ? "전날 마지막 장소" : "출발지"}
+                    statusLabel={isCarryOverStart ? "연결" : "고정"}
+                    chipLabel={isCarryOverStart ? "이 위치에서 다음 날 시작" : "최적화 시작점"}
                   />
                 ) : null}
                 {currentStops.map((stop, index) => {
                   const isLastStop = index === currentStops.length - 1;
-                  const nextSegmentIndex = startPoint ? index + 1 : index;
+                  const hasStartPoint = Boolean(startPoint);
+                  const nextSegmentIndex = hasStartPoint ? index + 1 : index;
                   const nextSegment = !isLastStop ? currentRouteSegments[nextSegmentIndex] : undefined;
+                  const parkingHint = getParkingHintForStop(
+                    index,
+                    currentRouteSegments,
+                    hasStartPoint,
+                  );
 
                   return (
                     <TimelineStopCard
@@ -447,6 +507,8 @@ export function PlannerPage() {
                       index={index + 1}
                       last={isLastStop}
                       moveModeLabel={getSegmentModeLabel(nextSegment?.mode)}
+                      parkingHint={parkingHint}
+                      accent={getDayAccent(stop.dayNumber ?? tripDetail?.selectedDayNumber ?? 1)}
                       onOpenDetail={() => {
                         setSelectedPlaceId(stop.placeId ?? stop.providerPlaceId ?? stop.id);
                         setSelectedPlaceDetail(createPlaceDetailFromStop(stop));
@@ -581,7 +643,6 @@ export function PlannerPage() {
           <PlannerCanvas
             stops={currentStops}
             startPoint={startPoint}
-            endPoint={tripDetail?.tripConfig.endPoint ?? null}
             routeSegments={tripDetail?.routeSegments ?? []}
             summary={currentSummary}
             travelRegion={tripDetail?.tripConfig.travelRegion ?? "korea"}

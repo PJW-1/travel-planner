@@ -1313,6 +1313,7 @@ button {
   width: 32px;
   height: 32px;
   border-radius: 11px;
+  border: 1px solid transparent;
   font-weight: 800;
   font-size: 0.82rem;
   color: var(--text-faint);
@@ -1424,6 +1425,10 @@ button {
   flex-direction: column;
   min-height: 0;
   overflow-y: auto;
+  background:
+    radial-gradient(circle at top right, var(--planner-day-soft, rgba(219, 234, 254, 0.22)), transparent 42%),
+    rgba(255, 255, 255, 0.74);
+  border-color: var(--planner-day-border, rgba(27, 31, 35, 0.06));
 }
 
 .planner-editor-card--sticky {
@@ -1485,6 +1490,11 @@ button {
 .timeline-stop {
   position: relative;
   padding-left: 48px;
+  --timeline-accent: #0f172a;
+  --timeline-accent-deep: #1d4ed8;
+  --timeline-soft: rgba(219, 234, 254, 0.22);
+  --timeline-border: rgba(27, 31, 35, 0.06);
+  --timeline-glow: rgba(15, 23, 42, 0.08);
 }
 
 .timeline-stop__index {
@@ -1499,11 +1509,12 @@ button {
   color: white;
   font-size: 0.82rem;
   font-weight: 900;
-  background: #0f172a;
+  background: var(--timeline-accent);
+  box-shadow: 0 0 0 6px var(--timeline-glow);
 }
 
 .timeline-stop__index--anchor {
-  background: linear-gradient(135deg, #1d4ed8, #0f766e);
+  background: linear-gradient(135deg, var(--timeline-accent), var(--timeline-accent-deep));
 }
 
 .timeline-stop__line {
@@ -1518,8 +1529,10 @@ button {
 .timeline-stop__card {
   padding: 16px;
   border-radius: 22px;
-  background: rgba(255, 255, 255, 0.82);
-  border: 1px solid rgba(27, 31, 35, 0.06);
+  background:
+    radial-gradient(circle at top right, var(--timeline-soft), transparent 42%),
+    rgba(255, 255, 255, 0.82);
+  border: 1px solid var(--timeline-border);
 }
 
 .timeline-stop__card--anchor {
@@ -1605,7 +1618,7 @@ button {
   align-items: center;
   gap: 6px;
   padding: 10px 0 0 8px;
-  color: var(--text-faint);
+  color: var(--timeline-accent-deep);
   font-size: 0.76rem;
   font-weight: 800;
 }
@@ -2494,6 +2507,19 @@ button {
   backdrop-filter: blur(18px);
 }
 
+.community-route-day-card {
+  --day-accent: #2563eb;
+  --day-deep: #1d4ed8;
+  --day-soft: rgba(219, 234, 254, 0.88);
+  --day-border: rgba(37, 99, 235, 0.24);
+  --day-text: #1d4ed8;
+  --day-glow: rgba(37, 99, 235, 0.16);
+  background:
+    radial-gradient(circle at top right, var(--day-soft), transparent 46%),
+    rgba(255, 255, 255, 0.82);
+  border-color: var(--day-border);
+}
+
 .community-route-hero {
   display: grid;
   gap: 16px;
@@ -2548,8 +2574,9 @@ button {
   height: 38px;
   padding: 0 14px;
   border-radius: 999px;
-  background: linear-gradient(135deg, rgba(59, 130, 246, 0.18), rgba(14, 165, 233, 0.2));
-  color: #2563eb;
+  background: linear-gradient(135deg, var(--day-soft), rgba(255, 255, 255, 0.96));
+  color: var(--day-text);
+  border: 1px solid var(--day-border);
   font-size: 0.86rem;
   font-weight: 800;
 }
@@ -2591,7 +2618,7 @@ button {
   left: 50%;
   width: 2px;
   margin-left: -1px;
-  background: rgba(59, 130, 246, 0.16);
+  background: var(--day-border);
 }
 
 .community-route-stop-list .community-route-stop-card:last-child .community-route-stop-card__rail::before {
@@ -2606,11 +2633,11 @@ button {
   width: 18px;
   height: 18px;
   border-radius: 50%;
-  background: #3b82f6;
+  background: var(--day-accent);
   color: #fff;
   font-size: 0.7rem;
   font-weight: 800;
-  box-shadow: 0 0 0 6px rgba(59, 130, 246, 0.12);
+  box-shadow: 0 0 0 6px var(--day-glow);
 }
 
 .community-route-stop-card__media {
@@ -2657,7 +2684,7 @@ button {
   padding: 18px;
   border-radius: 26px;
   background: rgba(255, 255, 255, 0.94);
-  border: 1px solid rgba(27, 31, 35, 0.05);
+  border: 1px solid var(--day-border);
 }
 
 .community-route-stop-card__top {
@@ -2669,7 +2696,7 @@ button {
 }
 
 .community-route-stop-card__time {
-  color: #2563eb;
+  color: var(--day-text);
   font-size: 0.82rem;
   font-weight: 800;
 }

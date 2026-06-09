@@ -56,6 +56,7 @@ export type PlannerRouteSegment = {
   mode: string;
   distanceKm: number;
   travelMinutes: number;
+  dayNumber?: number;
   path: Array<{
     lat: number;
     lng: number;

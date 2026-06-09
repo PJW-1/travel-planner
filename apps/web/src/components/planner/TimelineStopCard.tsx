@@ -1,11 +1,15 @@
+import type { CSSProperties } from "react";
 import { Navigation, PencilLine, Trash2 } from "lucide-react";
 import type { PlannerStop } from "@travel/shared";
+import type { DayAccent } from "@/lib/dayAccent";
 
 type TimelineStopCardProps = {
   stop: PlannerStop;
   index: number | string;
   last: boolean;
   moveModeLabel?: string | null;
+  parkingHint?: string | null;
+  accent?: DayAccent | null;
   onEdit?: (stop: PlannerStop) => void;
   onDelete?: (stop: PlannerStop) => void;
   onOpenDetail?: (stop: PlannerStop) => void;
@@ -24,6 +28,8 @@ export function TimelineStopCard({
   index,
   last,
   moveModeLabel = null,
+  parkingHint = null,
+  accent = null,
   onEdit,
   onDelete,
   onOpenDetail,
@@ -36,8 +42,16 @@ export function TimelineStopCard({
   onDrop,
   onDragEnd,
 }: TimelineStopCardProps) {
+  const style = {
+    "--timeline-accent": accent?.solid ?? "#0f172a",
+    "--timeline-accent-deep": accent?.deep ?? "#1d4ed8",
+    "--timeline-soft": accent?.soft ?? "rgba(219, 234, 254, 0.22)",
+    "--timeline-border": accent?.border ?? "rgba(27, 31, 35, 0.06)",
+    "--timeline-glow": accent?.glow ?? "rgba(15, 23, 42, 0.08)",
+  } as CSSProperties;
+
   return (
-    <div className="timeline-stop">
+    <div className="timeline-stop" style={style}>
       <div className="timeline-stop__index">{index}</div>
       {!last ? <div className="timeline-stop__line" /> : null}
       <article
@@ -94,6 +108,7 @@ export function TimelineStopCard({
           <span>체류 {stop.stayMinutes}분</span>
           {stop.distanceKm ? <span>이동 {stop.distanceKm.toFixed(1)}km</span> : null}
           {stop.forked ? <span className="status-chip">포크</span> : null}
+          {parkingHint ? <span className="status-chip">{parkingHint}</span> : null}
         </div>
 
         {onEdit || onDelete ? (
