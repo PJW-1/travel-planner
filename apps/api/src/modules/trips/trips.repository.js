@@ -351,6 +351,37 @@ function getRouteSegmentsForDay(analysisRow, dayNumber) {
   }));
 }
 
+async function getLatestTripAnalysis(connection, tripId) {
+  const [analysisIdRows] = await connection.execute(
+    `
+      SELECT id
+      FROM trip_analyses
+      WHERE trip_id = ?
+      ORDER BY analyzed_at DESC
+      LIMIT 1
+    `,
+    [Number(tripId)],
+  );
+
+  const latestAnalysisId = analysisIdRows[0]?.id;
+
+  if (!latestAnalysisId) {
+    return null;
+  }
+
+  const [analysisRows] = await connection.execute(
+    `
+      SELECT total_distance_km, total_travel_minutes, optimization_score, warning_json
+      FROM trip_analyses
+      WHERE id = ?
+      LIMIT 1
+    `,
+    [latestAnalysisId],
+  );
+
+  return analysisRows[0] ?? null;
+}
+
 async function getOwnedTrip(connection, userId, tripId) {
   const [rows] = await connection.execute(
     `
@@ -579,19 +610,10 @@ export async function getTripDetail(userId, tripId, dayNumberInput = 1) {
     [tripIdNumber, selectedDayNumber],
   );
 
-  const [analysisRows] = await db.execute(
-    `
-      SELECT total_distance_km, total_travel_minutes, optimization_score, warning_json
-      FROM trip_analyses
-      WHERE trip_id = ?
-      ORDER BY analyzed_at DESC
-      LIMIT 1
-    `,
-    [tripIdNumber],
-  );
+  const analysis = await getLatestTripAnalysis(db, tripIdNumber);
 
-  const summary = buildSummary(stopRows, analysisRows[0]);
-  const insights = buildInsights(stopRows, summary, analysisRows[0]);
+  const summary = buildSummary(stopRows, analysis);
+  const insights = buildInsights(stopRows, summary, analysis);
   const theme = parseJsonValue(trip.theme_json, {});
 
   return {
@@ -626,7 +648,7 @@ export async function getTripDetail(userId, tripId, dayNumberInput = 1) {
     stops: stopRows.map(mapStop),
     summary,
     insights,
-    routeSegments: getRouteSegmentsForDay(analysisRows[0], selectedDayNumber),
+    routeSegments: getRouteSegmentsForDay(analysis, selectedDayNumber),
   };
 }
 

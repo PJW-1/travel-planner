@@ -87,6 +87,37 @@ function mapComment(row, userId = null) {
   };
 }
 
+async function getLatestTripAnalysis(connection, tripId) {
+  const [analysisIdRows] = await connection.execute(
+    `
+      SELECT id
+      FROM trip_analyses
+      WHERE trip_id = ?
+      ORDER BY analyzed_at DESC
+      LIMIT 1
+    `,
+    [Number(tripId)],
+  );
+
+  const latestAnalysisId = analysisIdRows[0]?.id;
+
+  if (!latestAnalysisId) {
+    return null;
+  }
+
+  const [analysisRows] = await connection.execute(
+    `
+      SELECT total_distance_km, total_travel_minutes, optimization_score, warning_json
+      FROM trip_analyses
+      WHERE id = ?
+      LIMIT 1
+    `,
+    [latestAnalysisId],
+  );
+
+  return analysisRows[0] ?? null;
+}
+
 export async function listCommunityRoutes(userId = null) {
   const db = getDbPool();
   const [routeRows] = await db.execute(
@@ -645,16 +676,7 @@ export async function importCommunityRoute(userId, routeId) {
       [route.trip_id],
     );
 
-    const [analysisRows] = await connection.execute(
-      `
-        SELECT total_distance_km, total_travel_minutes, optimization_score, warning_json
-        FROM trip_analyses
-        WHERE trip_id = ?
-        ORDER BY analyzed_at DESC
-        LIMIT 1
-      `,
-      [route.trip_id],
-    );
+    const analysis = await getLatestTripAnalysis(connection, route.trip_id);
 
     const dayIdMap = new Map();
     const newTripId = createId();
@@ -752,7 +774,7 @@ export async function importCommunityRoute(userId, routeId) {
       );
     }
 
-    if (analysisRows[0]) {
+    if (analysis) {
       await connection.execute(
         `
           INSERT INTO trip_analyses (
@@ -769,10 +791,10 @@ export async function importCommunityRoute(userId, routeId) {
         [
           createId(),
           newTripId,
-          analysisRows[0].total_distance_km,
-          analysisRows[0].total_travel_minutes,
-          analysisRows[0].optimization_score,
-          analysisRows[0].warning_json,
+          analysis.total_distance_km,
+          analysis.total_travel_minutes,
+          analysis.optimization_score,
+          analysis.warning_json,
         ],
       );
     }

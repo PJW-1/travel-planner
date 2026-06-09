@@ -17,6 +17,41 @@ function parseJsonValue(value, fallback) {
   }
 }
 
+async function getLatestTripAnalysis(connection, tripId) {
+  const [analysisIdRows] = await connection.execute(
+    `
+      SELECT id
+      FROM trip_analyses
+      WHERE trip_id = ?
+      ORDER BY analyzed_at DESC
+      LIMIT 1
+    `,
+    [Number(tripId)],
+  );
+
+  const latestAnalysisId = analysisIdRows[0]?.id;
+
+  if (!latestAnalysisId) {
+    return null;
+  }
+
+  const [analysisRows] = await connection.execute(
+    `
+      SELECT
+        total_distance_km,
+        total_travel_minutes,
+        optimization_score,
+        warning_json
+      FROM trip_analyses
+      WHERE id = ?
+      LIMIT 1
+    `,
+    [latestAnalysisId],
+  );
+
+  return analysisRows[0] ?? null;
+}
+
 function formatMonth(dateValue) {
   const date = new Date(dateValue);
   return date.toLocaleString("en-US", { month: "short" });
@@ -192,22 +227,7 @@ export async function getPlannerOverview() {
     [trip?.id ?? 0],
   );
 
-  const [analysisRows] = await db.execute(
-    `
-      SELECT
-        total_distance_km,
-        total_travel_minutes,
-        optimization_score,
-        warning_json
-      FROM trip_analyses
-      WHERE trip_id = ?
-      ORDER BY analyzed_at DESC
-      LIMIT 1
-    `,
-    [trip?.id ?? 0],
-  );
-
-  const analysis = analysisRows[0];
+  const analysis = await getLatestTripAnalysis(db, trip?.id ?? 0);
   const warnings = parseJsonValue(analysis?.warning_json, []);
 
   return {
