@@ -60,9 +60,13 @@ If you want the same demo/community data used in the current local showcase, app
 PowerShell:
 
 ```powershell
-Get-Content .\apps\api\src\database\sql\011_reset_to_admin_only.sql | mysql -h 127.0.0.1 -P 3306 -u root -p2364 -D travel
-Get-Content .\apps\api\src\database\sql\013_showcase_snapshot.sql | mysql -h 127.0.0.1 -P 3306 -u root -p2364 -D travel
+$repo = (Get-Location).Path.Replace('\', '/')
+mysql -h 127.0.0.1 -P 3306 -u root -p2364 -D travel --default-character-set=utf8mb4 -e "source $repo/apps/api/src/database/sql/011_reset_to_admin_only.sql"
+mysql -h 127.0.0.1 -P 3306 -u root -p2364 -D travel --default-character-set=utf8mb4 -e "source $repo/apps/api/src/database/sql/013_showcase_snapshot.sql"
 ```
+
+Do not use `Get-Content ... | mysql ...` on Windows PowerShell for these seed files.
+That can corrupt Korean text during stdin piping.
 
 The snapshot contains:
 
