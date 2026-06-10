@@ -529,6 +529,93 @@ function getGoogleRegionCode(travelRegion) {
   }
 }
 
+function getGoogleLanguageCode(travelRegion) {
+  switch (travelRegion) {
+    case "japan":
+      return "ja";
+    case "greater_china":
+      return "zh-TW";
+    case "america":
+    case "europe":
+    case "oceania":
+    case "southeast_asia":
+      return "en";
+    case "korea":
+    default:
+      return "ko";
+  }
+}
+
+function getTravelRegionSearchHint(travelRegion) {
+  switch (travelRegion) {
+    case "japan":
+      return "Japan";
+    case "southeast_asia":
+      return "Southeast Asia";
+    case "europe":
+      return "Europe";
+    case "america":
+      return "United States";
+    case "greater_china":
+      return "Taiwan";
+    case "oceania":
+      return "Australia";
+    case "korea":
+    default:
+      return "South Korea";
+  }
+}
+
+function getTravelRegionCountryHints(travelRegion) {
+  switch (travelRegion) {
+    case "japan":
+      return ["japan", "日本"];
+    case "southeast_asia":
+      return [
+        "thailand",
+        "vietnam",
+        "singapore",
+        "indonesia",
+        "malaysia",
+        "philippines",
+      ];
+    case "europe":
+      return [
+        "europe",
+        "france",
+        "italy",
+        "spain",
+        "germany",
+        "united kingdom",
+      ];
+    case "america":
+      return ["united states", "usa", "america"];
+    case "greater_china":
+      return ["taiwan", "台灣", "台湾", "hong kong", "香港", "china", "中國", "中国"];
+    case "oceania":
+      return ["australia", "new zealand", "oceania"];
+    case "korea":
+    default:
+      return ["south korea", "republic of korea", "korea", "대한민국", "한국"];
+  }
+}
+
+function belongsToTravelRegion(regionText, travelRegion) {
+  const normalizedRegionText = normalizeWhitespace(String(regionText ?? "")).toLowerCase();
+
+  if (!normalizedRegionText) {
+    return false;
+  }
+
+  return getTravelRegionCountryHints(travelRegion).some((hint) =>
+    normalizedRegionText.includes(hint.toLowerCase()),
+  );
+}
+
+function buildPlaceSearchQuery(query, travelRegion) {
+  return `${query} ${getTravelRegionSearchHint(travelRegion)}`.trim();
+}
+
 function getTravelRegionKeyword(travelRegion) {
   switch (travelRegion) {
     case "japan":
@@ -632,7 +719,7 @@ async function extractPlaceCandidatesWithLlm({ transcript, title, chapters, trav
           parts: [
             {
               text:
-                "You extract travel places from YouTube travel transcripts. Return only JSON. Prefer specific visitable places over broad regions. If a city or area and a specific landmark both appear, prefer the landmark. Keep the result concise and deduplicated.",
+                "You extract travel places from YouTube travel transcripts. Return only JSON. Respect the requested travel region strictly. Prefer specific visitable places over broad regions. If a city or area and a specific landmark both appear, prefer the landmark. If a place name is ambiguous, include city and country context in the place string itself. Do not return Korean homonyms for a Japan trip, or Japan homonyms for a Korea trip. Keep the result concise and deduplicated.",
             },
           ],
         },
@@ -733,19 +820,7 @@ function inferTravelRegionsFromText(text) {
 
 function getValidationRegions(primaryRegion, text) {
   const inferredRegions = inferTravelRegionsFromText(text);
-  const orderedRegions = [
-    primaryRegion,
-    ...inferredRegions,
-    "korea",
-    "japan",
-    "southeast_asia",
-    "europe",
-    "america",
-    "greater_china",
-    "oceania",
-  ];
-
-  return [...new Set(orderedRegions)];
+  return [...new Set([primaryRegion, ...inferredRegions].filter(Boolean))];
 }
 
 async function resolveGooglePlace(query, travelRegion) {
@@ -762,8 +837,8 @@ async function resolveGooglePlace(query, travelRegion) {
         "places.displayName,places.formattedAddress,places.location,places.primaryTypeDisplayName",
     },
     body: JSON.stringify({
-      textQuery: `${query} ${getTravelRegionKeyword(travelRegion)}`.trim(),
-      languageCode: "ko",
+      textQuery: buildPlaceSearchQuery(query, travelRegion),
+      languageCode: getGoogleLanguageCode(travelRegion),
       regionCode: getGoogleRegionCode(travelRegion),
       rankPreference: "RELEVANCE",
     }),
@@ -774,9 +849,15 @@ async function resolveGooglePlace(query, travelRegion) {
     const result = data.places?.[0];
 
     if (result?.location) {
+      const formattedAddress = result.formattedAddress || query;
+
+      if (!belongsToTravelRegion(formattedAddress, travelRegion)) {
+        return null;
+      }
+
       return {
         name: result.displayName?.text || query,
-        address: result.formattedAddress || query,
+        address: formattedAddress,
         lat: Number(result.location.latitude),
         lng: Number(result.location.longitude),
         region: result.formattedAddress?.split(", ").slice(-1)[0] || "해외",
@@ -788,7 +869,7 @@ async function resolveGooglePlace(query, travelRegion) {
 
   const geocodeResponse = await fetch(
     `https://maps.googleapis.com/maps/api/geocode/json?address=${encodeURIComponent(
-      `${query} ${getTravelRegionKeyword(travelRegion)}`.trim(),
+      buildPlaceSearchQuery(query, travelRegion),
     )}&key=${encodeURIComponent(env.googleMaps.serverApiKey)}`,
   );
 
@@ -800,6 +881,15 @@ async function resolveGooglePlace(query, travelRegion) {
   const geocodeResult = geocodeData.results?.[0];
 
   if (!geocodeResult?.geometry?.location) {
+    return null;
+  }
+
+  const countryName =
+    geocodeResult.address_components?.find((component) =>
+      component.types?.includes("country"),
+    )?.long_name || "";
+
+  if (!belongsToTravelRegion(countryName, travelRegion)) {
     return null;
   }
 
