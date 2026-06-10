@@ -284,6 +284,7 @@ export function SetupPage() {
     "activity";
   const communityPlaceLat = searchParams.get("communityPlaceLat");
   const communityPlaceLng = searchParams.get("communityPlaceLng");
+  const communityPlaceDayNumber = searchParams.get("communityPlaceDayNumber");
   const [tripForm, setTripForm] = useState<TripFormState>(createDefaultTripForm());
   const [stopForm, setStopForm] = useState<StopFormState>(createDefaultStopForm());
   const [plannedStops, setPlannedStops] = useState<SetupPlannerStop[]>([]);
@@ -372,7 +373,6 @@ export function SetupPage() {
 
   useEffect(() => {
     if (
-      editingTripId ||
       !communityPlaceId ||
       !communityPlaceName.trim() ||
       injectedCommunityPlaceId === communityPlaceId
@@ -380,10 +380,25 @@ export function SetupPage() {
       return;
     }
 
+    if (editingTripId && loadingTrip) {
+      return;
+    }
+
     setPlannedStops((current) => {
       const injectedId = `community-${communityPlaceId}`;
+      const lastDayNumber =
+        current.length > 0
+          ? current.reduce((maxDay, stop) => Math.max(maxDay, stop.dayNumber ?? 1), 1)
+          : 1;
+      const requestedDayNumber = communityPlaceDayNumber
+        ? Math.max(1, Math.min(tripForm.days, Number(communityPlaceDayNumber) || 1))
+        : lastDayNumber;
 
-      if (current.some((stop) => stop.id === injectedId)) {
+      if (
+        current.some(
+          (stop) => stop.id === injectedId || stop.placeId === communityPlaceId,
+        )
+      ) {
         return current;
       }
 
@@ -396,6 +411,7 @@ export function SetupPage() {
             name: communityPlaceName.trim(),
             address: communityPlaceAddress,
             categoryKey: normalizeCategoryKeyForCommunity(communityPlaceCategoryKey),
+            dayNumber: requestedDayNumber,
             lat: communityPlaceLat ? Number(communityPlaceLat) : null,
             lng: communityPlaceLng ? Number(communityPlaceLng) : null,
           },
@@ -415,17 +431,20 @@ export function SetupPage() {
       next.delete("communityPlaceCategoryKey");
       next.delete("communityPlaceLat");
       next.delete("communityPlaceLng");
+      next.delete("communityPlaceDayNumber");
       return next;
     });
   }, [
     communityPlaceAddress,
     communityPlaceCategoryKey,
+    communityPlaceDayNumber,
     communityPlaceId,
     communityPlaceLat,
     communityPlaceLng,
     communityPlaceName,
     editingTripId,
     injectedCommunityPlaceId,
+    loadingTrip,
     setSearchParams,
     tripForm.transportType,
   ]);

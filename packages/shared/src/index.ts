@@ -90,6 +90,7 @@ export type SavedPlan = {
   id: string;
   title: string;
   date: string;
+  days: number;
   placeCount: number;
   emoji: string;
 };

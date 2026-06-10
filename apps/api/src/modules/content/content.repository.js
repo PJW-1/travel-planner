@@ -331,6 +331,7 @@ export async function getMySummary(userId) {
         id,
         title,
         start_date,
+        days,
         theme_json,
         cover_image_url
       FROM trips
@@ -439,6 +440,7 @@ export async function getMySummary(userId) {
         id: String(row.id),
         title: row.title,
         date: formatDate(row.start_date),
+        days: Number(row.days ?? 1),
         placeCount: Number(theme.placeCount ?? 0),
         emoji: row.cover_image_url ?? "🧳",
       };

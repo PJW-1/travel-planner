@@ -57,6 +57,8 @@ export function MyPage() {
   const [deletePassword, setDeletePassword] = useState("");
   const [selectedPlaceId, setSelectedPlaceId] = useState<string | null>(null);
   const [accountDialog, setAccountDialog] = useState<AccountDialog>(null);
+  const [plannerPickerPlace, setPlannerPickerPlace] = useState<SavedAiPlace | null>(null);
+  const [plannerPickerPlanId, setPlannerPickerPlanId] = useState<string | null>(null);
 
   useEffect(() => {
     let isMounted = true;
@@ -231,7 +233,7 @@ export function MyPage() {
     }
   }
 
-  function handleAddSavedPlace(place: SavedAiPlace) {
+  function buildSavedPlaceParams(place: SavedAiPlace, tripId?: string, dayNumber?: number) {
     const params = new URLSearchParams({
       communityPlaceId: place.placeId,
       communityPlaceName: place.title,
@@ -241,7 +243,43 @@ export function MyPage() {
       communityPlaceLng: String(place.lng),
     });
 
-    navigate(`/setup?${params.toString()}`);
+    if (tripId) {
+      params.set("tripId", tripId);
+    }
+
+    if (dayNumber) {
+      params.set("communityPlaceDayNumber", String(dayNumber));
+    }
+
+    return params;
+  }
+
+  function moveSavedPlaceToPlanner(place: SavedAiPlace, tripId?: string, dayNumber?: number) {
+    navigate(`/setup?${buildSavedPlaceParams(place, tripId, dayNumber).toString()}`);
+    setPlannerPickerPlace(null);
+    setPlannerPickerPlanId(null);
+  }
+
+  function handleAddSavedPlace(place: SavedAiPlace) {
+    if (savedPlans.length === 0) {
+      moveSavedPlaceToPlanner(place);
+      return;
+    }
+
+    setPlannerPickerPlace(place);
+  }
+
+  function closePlannerPicker() {
+    setPlannerPickerPlace(null);
+    setPlannerPickerPlanId(null);
+  }
+
+  function formatSavedPlanMeta(plan: SavedPlan) {
+    return `${plan.date} | ${plan.days}d | ${plan.placeCount} spots`;
+  }
+
+  function togglePlannerPickerPlan(planId: string) {
+    setPlannerPickerPlanId((current) => (current === planId ? null : planId));
   }
 
   async function handleImportSavedRoute(routeId: string) {
@@ -468,6 +506,109 @@ export function MyPage() {
         </article>
 
       </section>
+
+      {plannerPickerPlace ? (
+        <div
+          className="account-modal"
+          role="presentation"
+          onMouseDown={(event) => {
+            if (event.target === event.currentTarget) {
+              closePlannerPicker();
+            }
+          }}
+        >
+          <section
+            className="account-modal__panel planner-picker-modal"
+            role="dialog"
+            aria-modal="true"
+          >
+            <button
+              type="button"
+              className="account-modal__close"
+              onClick={closePlannerPicker}
+              aria-label="닫기"
+            >
+              <X size={18} />
+            </button>
+
+            <div className="account-modal__header planner-picker-modal__header">
+              <span>Planner</span>
+              <h2>어느 일정에 담을까요?</h2>
+              <p>
+                <strong>{plannerPickerPlace.title}</strong> 장소를 새 플래너에 담거나 기존
+                일정에 바로 추가할 수 있습니다.
+              </p>
+            </div>
+
+            <div className="planner-picker-modal__actions">
+              <button
+                type="button"
+                className="button button--primary"
+                onClick={() => moveSavedPlaceToPlanner(plannerPickerPlace)}
+              >
+                <Plus size={16} />
+                새 플래너에 담기
+              </button>
+            </div>
+
+            <div className="planner-picker-modal__section">
+              <div className="planner-picker-modal__section-header">
+                <strong>기존 일정에 바로 추가</strong>
+                <span>{savedPlans.length}개 일정</span>
+              </div>
+
+              {savedPlans.length > 0 ? (
+                <div className="planner-picker-modal__saved-plans">
+                  {savedPlans.map((plan) => (
+                    <div
+                      key={plan.id}
+                      className={
+                        plannerPickerPlanId === plan.id
+                          ? "planner-picker-plan-wrap is-active"
+                          : "planner-picker-plan-wrap"
+                      }
+                    >
+                      <button
+                        type="button"
+                        className="planner-picker-plan"
+                        onClick={() => togglePlannerPickerPlan(plan.id)}
+                      >
+                        <div className="planner-picker-plan__emoji">{plan.emoji}</div>
+                        <div className="planner-picker-plan__body">
+                          <strong>{plan.title}</strong>
+                          <p>{formatSavedPlanMeta(plan)}</p>
+                        </div>
+                        <span className="planner-picker-plan__action">
+                          {plannerPickerPlanId === plan.id ? "Day 선택 중" : "일차 선택"}
+                        </span>
+                      </button>
+
+                      {plannerPickerPlanId === plan.id ? (
+                        <div className="planner-picker-plan__days">
+                          {Array.from({ length: plan.days }, (_, index) => index + 1).map((day) => (
+                            <button
+                              key={`${plan.id}-day-${day}`}
+                              type="button"
+                              className="planner-picker-day"
+                              onClick={() => moveSavedPlaceToPlanner(plannerPickerPlace, plan.id, day)}
+                            >
+                              {day}일차에 담기
+                            </button>
+                          ))}
+                        </div>
+                      ) : null}
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="planner-picker-modal__empty">
+                  <p>아직 저장한 일정이 없어서 새 플래너로 먼저 담아둘게요.</p>
+                </div>
+              )}
+            </div>
+          </section>
+        </div>
+      ) : null}
 
       {accountDialog ? (
         <div
